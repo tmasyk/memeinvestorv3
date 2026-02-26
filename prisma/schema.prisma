@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TokenStatus {
+  PENDING
+  FILTER_PASSED
+  FILTER_FAILED
+  RISK_PASSED
+  RISK_FAILED
+}
+
+model Token {
+  id        String     @id @default(uuid())
+  address   String     @unique
+  symbol    String?
+  name      String?
+  decimals  Int?
+  liquidity Float?
+  volume24h Float?
+  status    TokenStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+
+  @@index([address])
+  @@index([status])
+}
+
+enum PendingTradeStatus {
+  QUEUED
+  PROCESSING
+  EXECUTED
+  FAILED
+}
+
+model PendingTrade {
+  id           String             @id @default(uuid())
+  tokenAddress String
+  status       PendingTradeStatus @default(QUEUED)
+  riskScore    Float
+  createdAt    DateTime           @default(now())
+
+  @@index([tokenAddress])
+  @@index([status])
+}
+
+enum PaperTradeStatus {
+  OPEN
+  CLOSED
+}
+
+model PaperTrade {
+  id           String           @id @default(uuid())
+  tokenAddress String
+  amount       Float
+  entryPrice   Float
+  exitPrice    Float?
+  status       PaperTradeStatus @default(OPEN)
+  createdAt    DateTime         @default(now())
+
+  @@index([tokenAddress])
+  @@index([status])
+}
