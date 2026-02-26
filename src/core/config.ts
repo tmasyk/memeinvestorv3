@@ -8,7 +8,8 @@ const envSchema = z.object({
   RPC_URL: z.string().url(),
   WS_URL: z.string().url().startsWith('wss://'),
   ENV: z.enum(['development', 'production']),
-  JITO_BLOCK_ENGINE_URL: z.string().url()
+  JITO_BLOCK_ENGINE_URL: z.string().url(),
+  TELEGRAM_BOT_TOKEN: z.string()
 })
 
 const parsedEnv = envSchema.safeParse(process.env)
@@ -23,5 +24,6 @@ export const config = {
   rpcUrl: parsedEnv.data.RPC_URL,
   wsUrl: parsedEnv.data.WS_URL,
   env: parsedEnv.data.ENV,
-  jitoBlockEngineUrl: parsedEnv.data.JITO_BLOCK_ENGINE_URL
+  jitoBlockEngineUrl: parsedEnv.data.JITO_BLOCK_ENGINE_URL,
+  telegramBotToken: parsedEnv.data.TELEGRAM_BOT_TOKEN
 }
