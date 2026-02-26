@@ -1,15 +1,18 @@
 import { PrismaClient } from '@prisma/client'
 import { IFilterPlugin, IRiskPlugin } from '../core/types'
+import { EventBus, EventName } from '../core/EventBus'
 
 export class ScannerService {
   private filters: IFilterPlugin[]
   private riskPlugins: IRiskPlugin[]
   private prisma: PrismaClient
+  private eventBus: EventBus
 
   constructor(filters: IFilterPlugin[], riskPlugins: IRiskPlugin[], prisma: PrismaClient) {
     this.filters = filters
     this.riskPlugins = riskPlugins
     this.prisma = prisma
+    this.eventBus = EventBus.getInstance()
   }
 
   async processNewToken(rawToken: any): Promise<void> {
@@ -86,6 +89,7 @@ export class ScannerService {
         }
       })
       console.log(`Token ${tokenAddress} passed risk check (Score: ${averageScore}). Queued for trade.`)
+      this.eventBus.emit(EventName.TRADE_QUEUED, { tokenAddress, riskScore: averageScore })
     } else {
       console.log(`Token ${tokenAddress} failed risk check (Score: ${averageScore}). Marked as RISK_FAILED.`)
     }

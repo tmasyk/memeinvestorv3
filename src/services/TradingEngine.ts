@@ -1,13 +1,25 @@
 import { PrismaClient } from '@prisma/client'
 import { PositionManager } from './PositionManager'
+import { EventBus, EventName } from '../core/EventBus'
 
 export class TradingEngine {
   private prisma: PrismaClient
   private positionManager: PositionManager
+  private eventBus: EventBus
 
   constructor(prisma: PrismaClient, positionManager: PositionManager) {
     this.prisma = prisma
     this.positionManager = positionManager
+    this.eventBus = EventBus.getInstance()
+
+    this.setupListeners()
+  }
+
+  private setupListeners() {
+    this.eventBus.on(EventName.TRADE_QUEUED, () => {
+      console.log('[TradingEngine] Received TRADE_QUEUED event')
+      this.processQueue()
+    })
   }
 
   async processQueue(): Promise<void> {
@@ -49,6 +61,7 @@ export class TradingEngine {
       })
 
       console.log(`[TradingEngine] Trade EXECUTED for ${pendingTrade.tokenAddress}`)
+      this.eventBus.emit(EventName.POSITION_OPENED, { tokenAddress: pendingTrade.tokenAddress })
     } else {
       await this.prisma.pendingTrade.update({
         where: { id: pendingTrade.id },
