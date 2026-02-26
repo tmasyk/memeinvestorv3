@@ -4,3 +4,26 @@ dist
 *.log
 .DS_Store
 prisma/migrations
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python (If applicable)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node.js (If applicable)
+node_modules/
+npm-debug.log*
+yarn-error.log*
