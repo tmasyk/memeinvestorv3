@@ -14,3 +14,11 @@ export interface IRiskPlugin extends IPlugin {
 export interface IStrategyPlugin extends IPlugin {
   shouldExit(trade: any, currentPrice: number): { exit: boolean, reason?: string }
 }
+
+export interface IPresetConfig {
+  id: string
+  name: string
+  filters: Array<{ name: string; params: any }>
+  risks: Array<{ name: string; params: any; weight: number }>
+  strategies: Array<{ name: string; params: any }>
+}
