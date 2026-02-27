@@ -263,9 +263,9 @@ export class TelegramProcessor {
         text: `
 📚 *Available Commands*
 ━━━━━━━━━━━━━━━━━━━━
-/start - Show main menu and enable trading
-/stop - Stop trading (scanner continues)
-/status - Check bot status and open trades
+/start - Enable trading, show menu
+/stop - Disable trading, scanner continues
+/status - Show dashboard with trading status
 /trades - List last 5 active paper trades and live ROI
 /wallet - Show wallet address and balance
 /preset <id> - Load a specific preset (e.g., degen_scalp, bluechip_safe)
