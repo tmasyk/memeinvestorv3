@@ -18,6 +18,7 @@ export class ScannerService {
   async processNewToken(rawToken: any): Promise<void> {
     // 1. Persist Discovery IMMEDIATELY
     try {
+      console.log(`[Scanner] Attempting DB write for ${rawToken.address}...`)
       await this.prisma.discovery.create({
         data: {
           tokenAddress: rawToken.address,
@@ -27,7 +28,8 @@ export class ScannerService {
         }
       })
       console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
-    } catch (error) {
+    } catch (error: any) {
+      console.error(`[Scanner] DB Write FAILED: ${error.message || error}`)
       console.warn(`[Discovery] Failed to persist token ${rawToken.address}`, error)
     }
 

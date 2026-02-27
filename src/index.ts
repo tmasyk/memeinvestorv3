@@ -34,8 +34,20 @@ process.on('uncaughtException', (error) => {
 async function main() {
   console.log('🚀 Booting MemeInvestor V3...')
 
-  // 1. Initialize Core
-  const prisma = new PrismaClient()
+  // 1. Initialize Core Services
+  const prisma = new PrismaClient({
+    log: config.env === 'development' ? ['error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: config.databaseUrl
+      }
+    },
+    // Resilient Connection Pool
+    // Note: These are passed as query parameters in the connection string usually,
+    // but if the driver supports it here we can add. 
+    // Prisma recommends adding ?connection_limit=20&pool_timeout=30 to the DATABASE_URL.
+    // We will assume the user updates the .env, but we can't force it here easily without parsing.
+  })
   const eventBus = EventBus.getInstance()
   const rpcManager = RpcConnectionManager.getInstance({
     heartbeatTimeoutMs: 15000,

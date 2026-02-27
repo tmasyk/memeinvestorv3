@@ -56,6 +56,7 @@ export class RaydiumScanner {
       const tokenData = this.parseTokenData(tx)
       
       if (tokenData) {
+        console.log(`[Scanner] Raw Event Detected: ${tokenData.address}`)
         console.log(`[RaydiumScanner] New Token Discovered: ${tokenData.address} (${tokenData.symbol})`)
         await this.scannerService.processNewToken(tokenData)
       } else {
