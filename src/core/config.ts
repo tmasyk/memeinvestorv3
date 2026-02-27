@@ -11,7 +11,8 @@ const envSchema = z.object({
   JITO_BLOCK_ENGINE_URL: z.string().url().optional(),
   TELEGRAM_BOT_TOKEN: z.string(),
   LIVE_TRADING_ENABLED: z.string().transform((val) => val.toLowerCase() === 'true').default('false'),
-  MAX_TRADE_SOL: z.string().transform((val) => parseFloat(val)).default('0.05')
+  MAX_TRADE_SOL: z.string().transform((val) => parseFloat(val)).default('0.05'),
+  TREND_SCOUT_ENABLED: z.string().transform((val) => val.toLowerCase() === 'true').default('false')
 })
 
 const parsedEnv = envSchema.safeParse(process.env)
@@ -34,6 +35,7 @@ export const config = {
   telegramBotToken: parsedEnv.data.TELEGRAM_BOT_TOKEN,
   liveTradingEnabled: parsedEnv.data.LIVE_TRADING_ENABLED,
   maxTradeSol: parsedEnv.data.MAX_TRADE_SOL,
+  trendScoutEnabled: parsedEnv.data.TREND_SCOUT_ENABLED,
   // Hardcoded constant for Jito simulation rate limit
   jitoRateLimit: 5 
 }

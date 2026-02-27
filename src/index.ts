@@ -14,6 +14,7 @@ import { JitoManager } from './core/JitoManager'
 import { TelegramService } from './services/TelegramService'
 import { RaydiumScanner } from './services/RaydiumScanner'
 import { DailyReportService } from './services/DailyReportService'
+import { TrendingScoutService } from './services/TrendingScoutService'
 
 // Plugins
 import { MinLiquidityFilter } from './plugins/filters/MinLiquidityFilter'
@@ -74,14 +75,20 @@ async function main() {
   JitoManager.getInstance(secretManager, presetManager, prisma)
 
   const defaultStrategy = new FixedRiskStrategy(50, 10) 
-  
+
+  const dailyReportService = new DailyReportService(prisma)
+
+  const raydiumScanner = new RaydiumScanner(scannerService)
+
+  const trendingScoutService = new TrendingScoutService(prisma, scannerService)
+
   let telegramService: TelegramService | undefined
   try {
-    telegramService = new TelegramService(config.telegramBotToken, presetManager, prisma, scannerService)
+    telegramService = new TelegramService(config.telegramBotToken, presetManager, prisma, scannerService, trendingScoutService)
   } catch (error) {
     console.error('[Telegram] AUTH FAILURE: Check your token in .env. Continuing without Telegram...')
   }
-  
+
   const positionMonitor = new PositionMonitor(
     prisma, 
     positionManager, 
@@ -93,12 +100,6 @@ async function main() {
   const tradingEngine = config.liveTradingEnabled 
     ? new TradingEngine(prisma, positionManager)
     : new PaperTradingService(prisma, positionManager, presetManager)
-
-  console.log(`[System] Trading Mode: ${config.liveTradingEnabled ? 'LIVE' : 'PAPER (SIMULATION)'}`)
-
-  const dailyReportService = new DailyReportService(prisma, telegramService)
-
-  const raydiumScanner = new RaydiumScanner(scannerService)
 
   // 4. Start Connections
   console.log('[System] Connecting to Solana RPC...')
@@ -120,6 +121,14 @@ async function main() {
   console.log('[System] Starting Daily Report Service...')
   dailyReportService.start()
 
+  // 7. Start Trending Scout Service (if enabled)
+  if (config.trendScoutEnabled) {
+    console.log('[System] Starting Trending Scout Service...')
+    trendingScoutService.start()
+  } else {
+    console.log('[System] Trending Scout Service disabled by config. Use /scout_on to enable.')
+  }
+
   console.log(`[System] V3 Engine Online. Environment: ${config.env}`)
   console.log('[System] Listening for Raydium Initializations...')
 
@@ -128,6 +137,7 @@ async function main() {
     console.log('Shutting down...')
     await raydiumScanner.stop()
     dailyReportService.stop()
+    trendingScoutService.stop()
     rpcManager.disconnect()
     await prisma.$disconnect()
     process.exit(0)

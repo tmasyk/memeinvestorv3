@@ -11,12 +11,16 @@ export class TelegramService {
   private userChatId: number | null = null
   private eventBus: EventBus
 
-  constructor(token: string, presetManager: PresetManager, prisma: PrismaClient, scannerService?: ScannerService) {
+  constructor(token: string, presetManager: PresetManager, prisma: PrismaClient, scannerService?: ScannerService, trendingScoutService?: any) {
     this.processor = new TelegramProcessor(presetManager, prisma)
     this.eventBus = EventBus.getInstance()
     
     if (scannerService) {
       this.processor.setScannerService(scannerService)
+    }
+
+    if (trendingScoutService) {
+      this.processor.setTrendingScoutService(trendingScoutService)
     }
 
     this.initializeBot(token)

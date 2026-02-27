@@ -9,6 +9,7 @@ export class TelegramProcessor {
   private eventBus: EventBus
   private scannerService: ScannerService | null = null
   private scannedPoolsCount: number = 0
+  private trendingScoutService: any = null
 
   constructor(presetManager: PresetManager, prisma: PrismaClient) {
     this.presetManager = presetManager
@@ -19,6 +20,10 @@ export class TelegramProcessor {
 
   setScannerService(scannerService: ScannerService): void {
     this.scannerService = scannerService
+  }
+
+  setTrendingScoutService(trendingScoutService: any): void {
+    this.trendingScoutService = trendingScoutService
   }
 
   private getMainMenuKeyboard(): any {
@@ -63,6 +68,36 @@ export class TelegramProcessor {
       }
     }
 
+    // Command: /scout_on - Enable trending scout
+    if (trimmedText === '/scout_on') {
+      if (this.trendingScoutService) {
+        this.trendingScoutService.start()
+        return {
+          text: '🔭 *Trending Scout Enabled*\n\nBot will now poll DexScreener for trending tokens every 60 seconds.',
+          reply_markup: this.getMainMenuKeyboard()
+        }
+      }
+      return {
+        text: '❌ Trending Scout not available.',
+        reply_markup: this.getMainMenuKeyboard()
+      }
+    }
+
+    // Command: /scout_off - Disable trending scout
+    if (trimmedText === '/scout_off') {
+      if (this.trendingScoutService) {
+        this.trendingScoutService.stop()
+        return {
+          text: '🚫 *Trending Scout Disabled*\n\nBot will stop polling for trending tokens.',
+          reply_markup: this.getMainMenuKeyboard()
+        }
+      }
+      return {
+        text: '❌ Trending Scout not available.',
+        reply_markup: this.getMainMenuKeyboard()
+      }
+    }
+
     // Command: /status or Button: 📊 Status
     if (trimmedText === '/status' || trimmedText === '📊 Status') {
       try {
@@ -96,6 +131,10 @@ export class TelegramProcessor {
           ? '🟢 Online (Frankfurt)' 
           : '⚠️ Disabled (Simulation)'
 
+        // Trending Scout Status Check
+        const scoutEnabled = this.trendingScoutService ? this.trendingScoutService.isEnabledState() : false
+        const scoutStatus = scoutEnabled ? '🔭 Active' : '🚫 Disabled'
+
         // Jito Latency Check
         const { JitoManager } = await import('../core/JitoManager')
         const jitoManager = JitoManager.getInstance()
@@ -112,6 +151,7 @@ export class TelegramProcessor {
 🧠 *Brain:* ${activePresetName}
 🤖 *Trading:* ${tradingStatus}
 ⚡ *Jito:* ${jitoStatus}
+🔭 *Trending Scout:* ${scoutStatus}
 
 📊 *Live Metrics (1h)*
 • Scanned: ${this.scannedPoolsCount.toLocaleString()} pools
