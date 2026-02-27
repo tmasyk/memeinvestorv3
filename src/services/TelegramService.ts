@@ -48,6 +48,36 @@ export class TelegramService {
         }
       })
 
+      // Callback Query Handler for Inline Buttons
+      this.bot.on('callback_query', async (query) => {
+        const chatId = query.message?.chat.id
+        if (!chatId || !query.data) return
+
+        // Route callback queries to processor
+        const response = await this.processor.handleCallback(query.data)
+        
+        // Edit the original message to show updated status
+        // We use editMessageText to update the UI in-place
+        if (query.message?.message_id) {
+          try {
+            await this.bot?.editMessageText(response.text, {
+              chat_id: chatId,
+              message_id: query.message.message_id,
+              parse_mode: 'Markdown',
+              reply_markup: response.reply_markup // Update keyboard if needed (e.g. show checkmark)
+            })
+          } catch (e) {
+            // Fallback if edit fails (e.g. message too old)
+            await this.bot?.sendMessage(chatId, response.text, { parse_mode: 'Markdown' })
+          }
+        } else {
+           await this.bot?.sendMessage(chatId, response.text, { parse_mode: 'Markdown' })
+        }
+
+        // Answer callback to stop the loading spinner
+        await this.bot?.answerCallbackQuery(query.id)
+      })
+
       this.setupCommands()
       console.log('[TelegramService] Bot initialized and listening for commands.')
     } catch (error: any) {
@@ -71,7 +101,26 @@ export class TelegramService {
       
       const response = await this.processor.handleMessage(msg.text)
       
-      this.bot?.sendMessage(chatId, response, { parse_mode: 'Markdown' })
+      // Check if response has reply_markup (for inline keyboards)
+      const options: TelegramBot.SendMessageOptions = { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+          // Persistent Menu
+          keyboard: [
+            [{ text: '📊 Status' }, { text: '🧠 Switch Preset' }],
+            [{ text: '❓ Help' }]
+          ],
+          resize_keyboard: true
+        }
+      }
+
+      // If the processor returned a special object with markup, use it
+      if (typeof response === 'object' && (response as any).reply_markup) {
+         options.reply_markup = (response as any).reply_markup
+         await this.bot?.sendMessage(chatId, (response as any).text, options)
+      } else {
+         await this.bot?.sendMessage(chatId, response as string, options)
+      }
     })
   }
 

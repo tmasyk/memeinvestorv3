@@ -10,11 +10,11 @@ export class TelegramProcessor {
     this.prisma = prisma
   }
 
-  async handleMessage(text: string): Promise<string> {
+  async handleMessage(text: string): Promise<string | any> {
     const trimmedText = text.trim()
 
-    // Command: /status
-    if (trimmedText === '/status') {
+    // Command: /status or Button: 📊 Status
+    if (trimmedText === '/status' || trimmedText === '📊 Status') {
       try {
         const activePresetConfig = this.presetManager.getActivePresetConfig()
         const activePresetName = activePresetConfig ? activePresetConfig.name : 'None'
@@ -32,6 +32,36 @@ export class TelegramProcessor {
       } catch (error: any) {
         console.error('[Telegram] Error handling /status:', error)
         return `❌ Error fetching status: ${error.message || 'Database connection failed'}`
+      }
+    }
+
+    // Command: 🧠 Switch Preset
+    if (trimmedText === '🧠 Switch Preset') {
+      try {
+        // Fetch all available presets from DB (or fallback to hardcoded if needed)
+        // Since we don't have a getAllPresets method on manager, we'll use Prisma directly or just hardcode the known ones for now
+        // Ideally, PresetManager should expose getAllPresets().
+        
+        // For this task, we will fetch from DB to be dynamic
+        const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
+        
+        if (presets.length === 0) {
+           return '⚠️ No presets found in database.'
+        }
+
+        const keyboard = presets.map(p => ([{
+          text: p.name,
+          callback_data: `preset_${p.id}`
+        }]))
+
+        return {
+          text: '🧠 *Select a Strategy Brain:*',
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        }
+      } catch (error) {
+        return '❌ Error fetching presets list.'
       }
     }
 
@@ -65,8 +95,8 @@ export class TelegramProcessor {
       }
     }
 
-    // Command: /help
-    if (trimmedText === '/help') {
+    // Command: /help or Button: ❓ Help
+    if (trimmedText === '/help' || trimmedText === '❓ Help') {
       return `
 📚 *Available Commands*
 ---------------------------
@@ -76,6 +106,41 @@ export class TelegramProcessor {
       `
     }
 
-    return '❓ Unknown command. Type /help for a list of commands.'
+    return '❓ Unknown command. Type /help or use the menu below.'
+  }
+
+  // Handle Callback Queries (Inline Buttons)
+  async handleCallback(data: string): Promise<{ text: string, reply_markup?: any }> {
+    if (data.startsWith('preset_')) {
+      const presetId = data.replace('preset_', '')
+      
+      try {
+        const success = await this.presetManager.loadPreset(presetId)
+        
+        if (!success) return { text: `❌ Failed to load preset: ${presetId}` }
+
+        const config = this.presetManager.getActivePresetConfig()
+        const minLiquidity = config?.filters.find(f => f.name === 'MinLiquidity')?.params.minUsd
+
+        // Re-fetch list to show checkmark
+        const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
+        
+        const keyboard = presets.map(p => ([{
+          text: p.id === presetId ? `✅ ${p.name}` : p.name,
+          callback_data: `preset_${p.id}`
+        }]))
+
+        return {
+          text: `✅ *Brain Swapped!*\n\n🧠 *Active:* ${config?.name}\n💧 *Min Liq:* $${minLiquidity}`,
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        }
+      } catch (error) {
+        return { text: '❌ Error loading preset.' }
+      }
+    }
+
+    return { text: '❓ Unknown interaction' }
   }
 }
