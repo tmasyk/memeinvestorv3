@@ -271,17 +271,7 @@ export class TelegramProcessor {
     // Command: /help or Button: ❓ Help
     if (trimmedText === '/help' || trimmedText === '❓ Help') {
       return {
-        text: `
-📚 *Available Commands*
-━━━━━━━━━━━━━━━━━━━━
-/start - Enable trading, show menu
-/stop - Disable trading, scanner continues
-/status - Show dashboard with trading status
-/trades - List last 5 active paper trades and live ROI
-/wallet - Show wallet address and balance
-/preset <id> - Load a specific preset (e.g., degen_scalp, bluechip_safe)
-/help - Show this help message
-        `,
+        text: 'Use the buttons below to navigate the bot.',
         reply_markup: this.getMainMenuKeyboard()
       }
     }
