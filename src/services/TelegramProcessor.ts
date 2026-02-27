@@ -49,9 +49,10 @@ export class TelegramProcessor {
 • Active Positions: ${openTradesCount}
 
 🔍 *Latest Scan*
-• Mint: \`${lastDiscovery?.tokenAddress || 'Waiting...'}\`
-• Time: ${lastDiscovery?.timestamp.toLocaleTimeString() || 'N/A'}
-        `
+ • Mint: \`${lastDiscovery?.tokenAddress || 'Waiting...'}\`
+ • Time: ${lastDiscovery?.timestamp.toLocaleTimeString() || 'N/A'}
+ • Last DB Write: ${lastDiscovery ? lastDiscovery.timestamp.toISOString() : 'Never'}
+         `
       } catch (error: any) {
         console.error('[Telegram] Error handling /status:', error)
         return `❌ Error fetching status: ${error.message || 'Database connection failed'}`
@@ -65,7 +66,9 @@ export class TelegramProcessor {
         // Since we don't have a getAllPresets method on manager, we'll use Prisma directly or just hardcode the known ones for now
         // Ideally, PresetManager should expose getAllPresets().
         
-        // For this task, we will fetch from DB to be dynamic
+        // Command: 🧠 Switch Preset
+    if (trimmedText === '🧠 Switch Preset') {
+      try {
         const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
         
         if (presets.length === 0) {
@@ -85,6 +88,42 @@ export class TelegramProcessor {
         }
       } catch (error) {
         return '❌ Error fetching presets list.'
+      }
+    }
+
+    // Command: /wallet
+    if (trimmedText === '/wallet') {
+      try {
+        const secretManager = (await import('../core/SecretManager')).SecretManager.getInstance()
+        
+        if (!secretManager.hasTradingCredentials()) {
+          return '⚠️ *Wallet Not Configured*\n\nAdd `TRADING_PRIVATE_KEY` to your .env file to enable trading.'
+        }
+
+        const { Keypair, Connection, LAMPORTS_PER_SOL } = await import('@solana/web3.js')
+        const bs58 = (await import('bs58')).default
+        
+        const privateKey = secretManager.getTradingPrivateKey()
+        const keypair = Keypair.fromSecretKey(bs58.decode(privateKey))
+        const publicKey = keypair.publicKey.toString()
+
+        // Fetch Balance
+        const { config } = await import('../core/config')
+        const connection = new Connection(config.rpcUrl, 'confirmed')
+        const balance = await connection.getBalance(keypair.publicKey)
+        const solBalance = (balance / LAMPORTS_PER_SOL).toFixed(4)
+
+        return `
+👛 *Trading Wallet*
+---------------------------
+🔑 *Address:* \`${publicKey}\`
+💰 *Balance:* ${solBalance} SOL
+
+⚠️ _Never share your private key._
+        `
+      } catch (error: any) {
+        console.error('[Telegram] Wallet command error:', error)
+        return `❌ Error fetching wallet info: ${error.message}`
       }
     }
 
