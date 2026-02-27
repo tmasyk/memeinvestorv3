@@ -85,13 +85,19 @@ export class PaperTradingService {
     const vaultAddress = this.generateMockVaultAddress(pendingTrade.tokenAddress)
     const canTrade = await this.positionManager.trackPosition(pendingTrade.tokenAddress, vaultAddress)
 
+    const discovery = await this.prisma.discovery.findFirst({
+      where: { tokenAddress: pendingTrade.tokenAddress },
+      orderBy: { timestamp: 'desc' }
+    })
+
     if (canTrade) {
       await this.prisma.paperTrade.create({
         data: {
           tokenAddress: pendingTrade.tokenAddress,
           amount: 1,
           entryPrice: 0.05,
-          status: 'OPEN'
+          status: 'OPEN',
+          discoveryId: discovery?.id || null
         }
       })
 

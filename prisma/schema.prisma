@@ -58,6 +58,7 @@ model Discovery {
   source          String   @default("SNIPER") // Source: "SNIPER" or "SCOUT"
   momentumRatio    Float?  // Volume-to-liquidity ratio from MomentumFilter
   whaleScore       Int     @default(0) // Future Whale Watcher plugin
+  paperTrades    PaperTrade[]
 
   @@index([tokenAddress])
   @@index([timestamp])
@@ -96,7 +97,10 @@ model PaperTrade {
   remainingAmount Float?
   status       PaperTradeStatus @default(OPEN)
   createdAt    DateTime         @default(now())
+  discoveryId   String?
+  discovery     Discovery?  @relation(fields: [discoveryId], references: [id])
 
   @@index([tokenAddress])
   @@index([status])
+  @@index([discoveryId])
 }

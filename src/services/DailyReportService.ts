@@ -67,6 +67,9 @@ export class DailyReportService {
         where: {
           status: 'CLOSED',
           createdAt: { gte: oneDayAgo }
+        },
+        include: {
+          discovery: true
         }
       })
 
@@ -75,6 +78,21 @@ export class DailyReportService {
       )
 
       const winRate = totalTrades > 0 ? (winningTrades.length / totalTrades) * 100 : 0
+
+      const sniperTrades = closedTrades.filter(trade => trade.discovery?.source === 'SNIPER')
+      const scoutTrades = closedTrades.filter(trade => trade.discovery?.source === 'SCOUT')
+
+      const sniperProfit = sniperTrades.reduce((total, trade) => {
+        if (!trade.exitPrice || !trade.entryPrice) return total
+        const pnl = ((trade.exitPrice - trade.entryPrice) / trade.entryPrice) * 100
+        return total + (trade.amount * (pnl / 100))
+      }, 0)
+
+      const scoutProfit = scoutTrades.reduce((total, trade) => {
+        if (!trade.exitPrice || !trade.entryPrice) return total
+        const pnl = ((trade.exitPrice - trade.entryPrice) / trade.entryPrice) * 100
+        return total + (trade.amount * (pnl / 100))
+      }, 0)
 
       const netVirtualProfit = closedTrades.reduce((total, trade) => {
         if (!trade.exitPrice || !trade.entryPrice) return total
@@ -88,6 +106,11 @@ export class DailyReportService {
 📈 *Total Trades:* ${totalTrades}
 🎯 *Win Rate:* ${winRate.toFixed(1)}%
 💰 *Net Virtual Profit:* ${netVirtualProfit.toFixed(4)} SOL
+━━━━━━━━━━━━━━━━━━━━
+
+🎯 *Total Sniper Trades:* ${sniperTrades.length} (Profit: ${sniperProfit.toFixed(4)} SOL)
+📡 *Total Scout Trades:* ${scoutTrades.length} (Profit: ${scoutProfit.toFixed(4)} SOL)
+
 ━━━━━━━━━━━━━━━━━━━━
 🏆 Winning Trades: ${winningTrades.length}
 📉 Losing Trades: ${closedTrades.length - winningTrades.length}
