@@ -73,7 +73,7 @@ export class TelegramProcessor {
            return '⚠️ No presets found in database.'
         }
 
-        const keyboard = presets.map(p => ([{
+        const keyboard = presets.map((p: { id: string, name: string }) => ([{
           text: p.name,
           callback_data: `preset_${p.id}`
         }]))
@@ -185,7 +185,7 @@ export class TelegramProcessor {
         // Re-fetch list to show checkmark
         const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
         
-        const keyboard = presets.map(p => ([{
+        const keyboard = presets.map((p: { id: string, name: string }) => ([{
           text: p.id === presetId ? `✅ ${p.name}` : p.name,
           callback_data: `preset_${p.id}`
         }]))
