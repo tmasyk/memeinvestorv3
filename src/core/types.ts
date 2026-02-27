@@ -4,7 +4,7 @@ export interface IPlugin {
 }
 
 export interface IFilterPlugin extends IPlugin {
-  execute(tokenData: any): boolean
+  execute(tokenData: any): { passed: boolean, metadata?: any }
 }
 
 export interface IRiskPlugin extends IPlugin {

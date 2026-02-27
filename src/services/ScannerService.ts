@@ -25,29 +25,34 @@ export class ScannerService {
     return this.isTradingEnabled
   }
 
-  async processNewToken(rawToken: any): Promise<void> {
+  async processNewToken(rawToken: any, source: string = 'SNIPER'): Promise<void> {
     if (!this.isTradingEnabled) {
       console.log(`[Scanner] Trading is DISABLED. Skipping token: ${rawToken.address}`)
       return
     }
 
-    console.log(`[Scanner] Processing new token: ${rawToken.address}`)
+    console.log(`[Scanner] Processing new token: ${rawToken.address} (Source: ${source})`)
     const poolDetectedTime = Date.now()
     this.eventBus.emit(EventName.POOL_DETECTED, { tokenAddress: rawToken.address, poolDetectedTime })
 
     let passedFilters = false
     let failedFilterName: string | null = null
     let failedValue: any = null
+    let filterMetadata: any = {}
 
     for (const filter of this.filters) {
-      const passed = filter.execute(rawToken)
+      const result = filter.execute(rawToken)
 
-      if (!passed) {
+      if (!result.passed) {
         const actualValue = this.getFilterValue(rawToken, filter.name)
         failedValue = actualValue
         console.log(`[Scanner] Token ${rawToken.address || 'unknown'} rejected: Failed ${filter.name} (Value: ${actualValue})`)
         failedFilterName = filter.name
         break
+      }
+
+      if (result.metadata) {
+        filterMetadata = { ...filterMetadata, ...result.metadata }
       }
     }
 
@@ -63,10 +68,12 @@ export class ScannerService {
             mint: rawToken.address,
             liquidity: rawToken.liquidity || 0,
             timestamp: new Date(),
-            reason: null
+            reason: null,
+            source: source,
+            momentumRatio: filterMetadata.momentumRatio || null
           }
         })
-        console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
+        console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity} | Source: ${source}`)
       } catch (error: any) {
         console.error(`[Scanner] DB WRITE ERROR: ${error.message || error}`)
         console.warn(`[Discovery] Failed to persist token ${rawToken.address}`, error)

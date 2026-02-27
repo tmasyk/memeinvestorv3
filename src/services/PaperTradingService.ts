@@ -154,6 +154,12 @@ export class PaperTradingService {
       return
     }
 
+    const discovery = await this.prisma.discovery.findFirst({
+      where: { tokenAddress }
+    })
+
+    const source = discovery?.source || 'SNIPER'
+
     const currentPrice = trade.exitPrice || entryPrice
     const profitPercentage = ((currentPrice - entryPrice) / entryPrice) * 100
 
@@ -165,10 +171,11 @@ export class PaperTradingService {
         profitPercentage,
         currentPrice,
         entryPrice,
-        presetName: activePreset?.name || 'Unknown'
+        presetName: activePreset?.name || 'Unknown',
+        source
       })
 
-      console.log(`[PaperTradingService] 🚀 PROFIT ALERT: +${profitPercentage.toFixed(2)}% | Token: ${tokenAddress} | Preset: ${activePreset?.name || 'Unknown'}`)
+      console.log(`[PaperTradingService] 🚀 PROFIT ALERT: +${profitPercentage.toFixed(2)}% | Token: ${tokenAddress} | Preset: ${activePreset?.name || 'Unknown'} | Source: ${source}`)
     }
   }
 

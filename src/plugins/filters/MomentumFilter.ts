@@ -9,26 +9,26 @@ export class MomentumFilter implements IFilterPlugin {
     this.volumeLiquidityRatio = volumeLiquidityRatio
   }
 
-  execute(tokenData: any): boolean {
+  execute(tokenData: any): { passed: boolean, metadata?: any } {
     if (!tokenData.liquidity || typeof tokenData.liquidity !== 'number') {
       console.warn('[MomentumFilter] Missing or invalid liquidity data')
-      return false
+      return { passed: false }
     }
 
     if (!tokenData.volume24h || typeof tokenData.volume24h !== 'number') {
       console.warn('[MomentumFilter] Missing or invalid volume24h data')
-      return false
+      return { passed: false }
     }
 
     const ratio = tokenData.volume24h / tokenData.liquidity
-    const passes = ratio >= this.volumeLiquidityRatio
+    const passed = ratio >= this.volumeLiquidityRatio
 
-    if (passes) {
+    if (passed) {
       console.log(`[MomentumFilter] 🚀 High Velocity detected: Volume ($${tokenData.volume24h.toLocaleString()}) is ${ratio.toFixed(2)}x Liquidity ($${tokenData.liquidity.toLocaleString()})`)
     } else {
       console.log(`[MomentumFilter] 🧟 Zombie momentum: Volume ($${tokenData.volume24h.toLocaleString()}) is only ${ratio.toFixed(2)}x Liquidity ($${tokenData.liquidity.toLocaleString()})`)
     }
 
-    return passes
+    return { passed, metadata: { momentumRatio: ratio } }
   }
 }

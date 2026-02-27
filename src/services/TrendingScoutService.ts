@@ -127,6 +127,6 @@ export class TrendingScoutService {
       volume24h: token.volume24h
     }
 
-    await this.scannerService.processNewToken(rawToken)
+    await this.scannerService.processNewToken(rawToken, 'SCOUT')
   }
 }

@@ -206,6 +206,7 @@ ${milestone.emoji} *[Paper Trade]* +${milestone.percentage}% REACHED!
 🧠 *Preset:* ${data.presetName}
 💰 *Entry:* ${data.entryPrice.toFixed(4)} SOL
 📈 *Current:* ${data.currentPrice.toFixed(4)} SOL
+🔭 *Source:* ${data.source || 'SNIPER'}
       `
 
       try {

@@ -9,11 +9,11 @@ export class MinLiquidityFilter implements IFilterPlugin {
     this.minLiquidity = minLiquidity
   }
 
-  execute(tokenData: any): boolean {
+  execute(tokenData: any): { passed: boolean, metadata?: any } {
     if (!tokenData.liquidity || typeof tokenData.liquidity !== 'number') {
-      return false
+      return { passed: false }
     }
 
-    return tokenData.liquidity >= this.minLiquidity
+    return { passed: tokenData.liquidity >= this.minLiquidity }
   }
 }

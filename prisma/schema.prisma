@@ -49,15 +49,28 @@ model PendingTrade {
 }
 
 model Discovery {
-  id           String   @id @default(uuid())
-  tokenAddress String
-  mint         String
-  liquidity    Float
-  timestamp    DateTime @default(now())
-  reason       String?  // Reason for skipping/rejection (e.g., "Slippage", "Filter Failed")
+  id             String   @id @default(uuid())
+  tokenAddress    String
+  mint           String
+  liquidity       Float
+  timestamp       DateTime @default(now())
+  reason          String?  // Reason for skipping/rejection (e.g., "Slippage", "Filter Failed")
+  source          String   @default("SNIPER") // Source: "SNIPER" or "SCOUT"
+  momentumRatio    Float?  // Volume-to-liquidity ratio from MomentumFilter
+  whaleScore       Int     @default(0) // Future Whale Watcher plugin
 
   @@index([tokenAddress])
   @@index([timestamp])
+  @@index([source])
+}
+
+model Whitelist {
+  id        String   @id @default(uuid())
+  mint      String   @unique
+  symbol    String?
+  addedAt   DateTime @default(now())
+
+  @@index([mint])
 }
 
 model Preset {
