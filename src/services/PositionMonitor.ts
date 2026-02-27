@@ -9,7 +9,21 @@ interface MonitoredPosition {
   tokenAddress: string
   entryPrice: number
   lastKnownPrice: number
+  milestonesReached: Set<number>
 }
+
+interface ProfitMilestone {
+  percentage: number
+  emoji: string
+}
+
+const PROFIT_MILESTONES: ProfitMilestone[] = [
+  { percentage: 25, emoji: '📈' },
+  { percentage: 50, emoji: '🚀' },
+  { percentage: 100, emoji: '🌙' },
+  { percentage: 200, emoji: '💎' },
+  { percentage: 500, emoji: '🏆' }
+]
 
 export class PositionMonitor {
   private prisma: PrismaClient
@@ -53,7 +67,8 @@ export class PositionMonitor {
     this.monitoredPositions.set(tokenAddress, {
       tokenAddress,
       entryPrice,
-      lastKnownPrice: entryPrice
+      lastKnownPrice: entryPrice,
+      milestonesReached: new Set<number>()
     })
 
     try {
@@ -97,6 +112,9 @@ export class PositionMonitor {
         return
       }
 
+      const pnl = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100
+      await this.checkProfitMilestones(tokenAddress, pnl, trade)
+
       const decision = this.strategy.shouldExit(trade, currentPrice)
 
       if (decision.exit) {
@@ -139,6 +157,24 @@ export class PositionMonitor {
       }
     } catch (error) {
       console.error(`[PositionMonitor] Error handling account update for ${tokenAddress}:`, error)
+    }
+  }
+
+  private async checkProfitMilestones(tokenAddress: string, pnl: number, trade: any): Promise<void> {
+    const monitoredPosition = this.monitoredPositions.get(tokenAddress)
+    if (!monitoredPosition) {
+      return
+    }
+
+    for (const milestone of PROFIT_MILESTONES) {
+      if (pnl >= milestone.percentage && !monitoredPosition.milestonesReached.has(milestone.percentage)) {
+        monitoredPosition.milestonesReached.add(milestone.percentage)
+
+        const virtualProfit = trade.amount * (pnl / 100)
+        await this.telegramService?.sendProfitMilestoneAlert(trade, milestone, pnl, virtualProfit)
+
+        console.log(`[PositionMonitor] Profit milestone reached: ${milestone.emoji} +${milestone.percentage}% for ${tokenAddress}`)
+      }
     }
   }
 

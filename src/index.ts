@@ -10,6 +10,7 @@ import { PositionMonitor } from './services/PositionMonitor'
 import { PresetManager } from './core/PresetManager'
 import { TelegramService } from './services/TelegramService'
 import { RaydiumScanner } from './services/RaydiumScanner'
+import { DailyReportService } from './services/DailyReportService'
 
 // Plugins
 import { MinLiquidityFilter } from './plugins/filters/MinLiquidityFilter'
@@ -88,6 +89,8 @@ async function main() {
 
   console.log(`[System] Trading Mode: ${config.liveTradingEnabled ? 'LIVE' : 'PAPER (SIMULATION)'}`)
 
+  const dailyReportService = new DailyReportService(prisma, telegramService)
+
   const raydiumScanner = new RaydiumScanner(scannerService)
 
   // 4. Start Connections
@@ -106,6 +109,10 @@ async function main() {
   console.log('[System] Starting Raydium Scanner...')
   await raydiumScanner.start()
 
+  // 6. Start Daily Report Service
+  console.log('[System] Starting Daily Report Service...')
+  dailyReportService.start()
+
   console.log(`[System] V3 Engine Online. Environment: ${config.env}`)
   console.log('[System] Listening for Raydium Initializations...')
 
@@ -113,6 +120,7 @@ async function main() {
   process.on('SIGINT', async () => {
     console.log('Shutting down...')
     await raydiumScanner.stop()
+    dailyReportService.stop()
     rpcManager.disconnect()
     await prisma.$disconnect()
     process.exit(0)

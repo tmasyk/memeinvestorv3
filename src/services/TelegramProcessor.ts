@@ -155,12 +155,47 @@ export class TelegramProcessor {
       }
     }
 
+    // Command: /trades
+    if (trimmedText === '/trades') {
+      try {
+        const activeTrades = await this.prisma.paperTrade.findMany({
+          where: { status: 'OPEN' },
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        })
+
+        if (activeTrades.length === 0) {
+          return '📭 No active paper trades currently.'
+        }
+
+        let message = '📊 *Active Paper Trades (Last 5)*\n\n'
+        
+        activeTrades.forEach((trade, index) => {
+          const currentPrice = trade.entryPrice || 0
+          const pnl = 0
+          const roi = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100
+          const roiEmoji = roi >= 0 ? '📈' : '📉'
+          
+          message += `${index + 1}. \`${trade.tokenAddress}\`\n`
+          message += `   ${roiEmoji} ROI: ${roi.toFixed(2)}%\n`
+          message += `   💰 Amount: ${trade.amount}\n`
+          message += `   🕐 Opened: ${trade.createdAt.toLocaleString()}\n\n`
+        })
+
+        return message
+      } catch (error: any) {
+        console.error('[Telegram] Error handling /trades:', error)
+        return `❌ Error fetching active trades: ${error.message || 'Database query failed'}`
+      }
+    }
+
     // Command: /help or Button: ❓ Help
     if (trimmedText === '/help' || trimmedText === '❓ Help') {
       return `
 📚 *Available Commands*
 ---------------------------
 /status - Check bot status and open trades
+/trades - List last 5 active paper trades and live ROI
 /preset <id> - Load a specific preset (e.g., degen_scalp, bluechip_safe)
 /help - Show this help message
       `

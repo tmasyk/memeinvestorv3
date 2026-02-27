@@ -133,16 +133,6 @@ export class TelegramService {
   async sendTradeAlert(trade: any, type: 'PARTIAL' | 'FULL', pnl: number) {
     if (!this.bot) return
 
-    // In a real app, you'd want to store the Chat ID in the DB or config.
-    // For now, we'll assume we broadcast to all recent chats or a hardcoded one.
-    // Since we don't have a stored Chat ID, we'll log it for now if no chat ID is available.
-    // Ideally, the user would /start the bot and we'd save their Chat ID.
-    // For this implementation, let's assume we log to console if no active chat is known, 
-    // or broadcast if we had a stored ID. 
-    
-    // NOTE: Without a target chat ID, we can't send a message. 
-    // We will just log the formatted message for now, as requested by the task "Log the generated message to the console".
-    
     let message = ''
 
     if (type === 'PARTIAL') {
@@ -161,8 +151,25 @@ export class TelegramService {
     }
 
     console.log('[TelegramService] Alert Generated:\n' + message)
-    
-    // TODO: Implement actual sending when we have a Chat ID storage mechanism
-    // this.bot.sendMessage(targetChatId, message, { parse_mode: 'Markdown' })
+  }
+
+  // New method for profit milestone alerts
+  async sendProfitMilestoneAlert(trade: any, milestone: any, pnl: number, virtualProfit: number) {
+    if (!this.bot) return
+
+    const message = `
+${milestone.emoji} *[Paper Trade]* +${milestone.percentage}% REACHED!
+🪙 *Token:* \`${trade.tokenAddress}\`
+📊 *Current PnL:* +${pnl.toFixed(2)}%
+💰 *Virtual Profit:* +${virtualProfit.toFixed(4)} SOL
+    `
+
+    console.log('[TelegramService] Profit Milestone Alert Generated:\n' + message)
+  }
+
+  async sendDailyReport(message: string) {
+    if (!this.bot) return
+
+    console.log('[TelegramService] Daily Report Generated:\n' + message)
   }
 }
