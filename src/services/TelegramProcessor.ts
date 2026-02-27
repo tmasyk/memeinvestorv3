@@ -175,10 +175,17 @@ export class TelegramProcessor {
         const keypair = Keypair.fromSecretKey(bs58.decode(privateKey))
         const publicKey = keypair.publicKey.toString()
 
-        // Fetch Balance
+        // Fetch Balance via RequestDispatcher
+        const { RequestDispatcher, RequestPriority } = await import('../core/RequestDispatcher')
         const { config } = await import('../core/config')
+        const requestDispatcher = RequestDispatcher.getInstance()
         const connection = new Connection(config.rpcUrl, 'confirmed')
-        const balance = await connection.getBalance(keypair.publicKey)
+        
+        const balance = await requestDispatcher.executeRequest(
+          () => connection.getBalance(keypair.publicKey),
+          RequestPriority.STANDARD
+        )
+        
         const solBalance = (balance / LAMPORTS_PER_SOL).toFixed(4)
 
         return {

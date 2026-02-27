@@ -2,18 +2,21 @@ import { PrismaClient } from '@prisma/client'
 import { PositionManager } from './PositionManager'
 import { EventBus, EventName } from '../core/EventBus'
 import { JitoManager } from '../core/JitoManager'
+import { RequestDispatcher, RequestPriority } from '../core/RequestDispatcher'
 
 export class PaperTradingService {
   private prisma: PrismaClient
   private positionManager: PositionManager
   private eventBus: EventBus
   private jitoManager: JitoManager
+  private requestDispatcher: RequestDispatcher
 
   constructor(prisma: PrismaClient, positionManager: PositionManager) {
     this.prisma = prisma
     this.positionManager = positionManager
     this.eventBus = EventBus.getInstance()
     this.jitoManager = JitoManager.getInstance()
+    this.requestDispatcher = RequestDispatcher.getInstance()
 
     this.setupListeners()
   }
@@ -51,10 +54,13 @@ export class PaperTradingService {
     console.log(`[PaperTradingService] 📊 PAPER MODE: Simulating Jito bundle for ${pendingTrade.tokenAddress}`)
 
     const poolDetectedTime = data?.poolDetectedTime || Date.now()
-    const simulationResult = await this.jitoManager.simulateBundle(
-      `sim-${pendingTrade.id}`,
-      pendingTrade.tokenAddress,
-      poolDetectedTime
+    const simulationResult = await this.requestDispatcher.executeRequest(
+      () => this.jitoManager.simulateBundle(
+        `sim-${pendingTrade.id}`,
+        pendingTrade.tokenAddress,
+        poolDetectedTime
+      ),
+      RequestPriority.CRITICAL
     )
 
     if (!simulationResult.success) {

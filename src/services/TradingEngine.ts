@@ -4,18 +4,21 @@ import { EventBus, EventName } from '../core/EventBus'
 import { config } from '../core/config'
 import { SecretManager } from '../core/SecretManager'
 import { JitoManager } from '../core/JitoManager'
+import { RequestDispatcher, RequestPriority } from '../core/RequestDispatcher'
 
 export class TradingEngine {
   private prisma: PrismaClient
   private positionManager: PositionManager
   private eventBus: EventBus
   private secretManager: SecretManager
+  private requestDispatcher: RequestDispatcher
 
   constructor(prisma: PrismaClient, positionManager: PositionManager) {
     this.prisma = prisma
     this.positionManager = positionManager
     this.eventBus = EventBus.getInstance()
     this.secretManager = SecretManager.getInstance()
+    this.requestDispatcher = RequestDispatcher.getInstance()
 
     this.setupListeners()
   }
@@ -57,10 +60,13 @@ export class TradingEngine {
         
         // 1. Simulate Bundle (Safety Check)
         const poolDetectedTime = data?.poolDetectedTime || Date.now()
-        const simulationResult = await jito.simulateBundle(
-          `sim-${pendingTrade.id}`,
-          pendingTrade.tokenAddress,
-          poolDetectedTime
+        const simulationResult = await this.requestDispatcher.executeRequest(
+          () => jito.simulateBundle(
+            `sim-${pendingTrade.id}`,
+            pendingTrade.tokenAddress,
+            poolDetectedTime
+          ),
+          RequestPriority.CRITICAL
         )
         
         if (!simulationResult.success) {
@@ -78,7 +84,6 @@ export class TradingEngine {
               data: { 
                 // Using existing fields or if 'reason' existed we would use it.
                 // Since we haven't migrated 'reason' yet, we skip setting it.
-                // The task asks us to add 'reason' column later.
               } 
             })
             console.log(`[TradingEngine] Logged simulation failure for ${pendingTrade.tokenAddress}`)
@@ -91,15 +96,18 @@ export class TradingEngine {
 
         //2. Execute Bundle (if live trading is enabled)
         if (config.liveTradingEnabled) {
-          const bundleId = await jito.sendBundle(`tx-${pendingTrade.id}`, pendingTrade.tokenAddress)
+          const bundleId = await this.requestDispatcher.executeRequest(
+            () => jito.sendBundle(`tx-${pendingTrade.id}`, pendingTrade.tokenAddress),
+            RequestPriority.CRITICAL
+          )
           console.log(`[TradingEngine] Bundle Sent! ID: ${bundleId}`)
         } else {
           console.log(`[TradingEngine] 🚫 LIVE_TRADING_ENABLED=false. Simulation complete - ABORTING real bundle send to block engine.`)
         }
         
         // NOTE: Real Jito implementation requires constructing a VersionedTransaction, 
-        // signing it with the private key, and sending it to the Block Engine via RPC/gRPC.
-        // For this task, we simulate the "bundling" process delay and success.
+        // signing it with private key, and sending it to Block Engine via RPC/gRPC.
+        // For this task, we simulate "bundling" process delay and success.
         
         await new Promise(resolve => setTimeout(resolve, 200)) // Network delay
     } else {

@@ -1,4 +1,5 @@
 import { RpcConnectionManager } from '../core/RpcConnectionManager'
+import { RequestDispatcher, RequestPriority } from '../core/RequestDispatcher'
 
 interface PositionSubscription {
   tokenAddress: string
@@ -9,10 +10,12 @@ interface PositionSubscription {
 export class PositionManager {
   private readonly MAX_OPEN_POSITIONS = 9
   private rpcManager: RpcConnectionManager
+  private requestDispatcher: RequestDispatcher
   private activePositions: Map<string, PositionSubscription> = new Map()
 
   constructor() {
     this.rpcManager = RpcConnectionManager.getInstance()
+    this.requestDispatcher = RequestDispatcher.getInstance()
   }
 
   async trackPosition(tokenAddress: string, vaultAddress: string): Promise<boolean> {
@@ -27,11 +30,14 @@ export class PositionManager {
     }
 
     try {
-      const subscriptionId = await this.rpcManager.subscribeToAccount(
-        vaultAddress,
-        (accountInfo) => {
-          console.log(`[PositionManager] Account update for ${tokenAddress}`)
-        }
+      const subscriptionId = await this.requestDispatcher.executeRequest(
+        () => this.rpcManager.subscribeToAccount(
+          vaultAddress,
+          (accountInfo) => {
+            console.log(`[PositionManager] Account update for ${tokenAddress}`)
+          }
+        ),
+        RequestPriority.CRITICAL
       )
 
       this.activePositions.set(tokenAddress, {
@@ -56,10 +62,16 @@ export class PositionManager {
       return
     }
 
+    const slotId = position.subscriptionId
+
     try {
-      await this.rpcManager.unsubscribeAccount(position.subscriptionId)
+      await this.requestDispatcher.executeRequest(
+        () => this.rpcManager.unsubscribeAccount(slotId),
+        RequestPriority.CRITICAL
+      )
+      
       this.activePositions.delete(tokenAddress)
-      console.log(`[PositionManager] Unsubscribed from ${tokenAddress} vault via singleton WebSocket. Slot released. (Active: ${this.activePositions.size}/${this.MAX_OPEN_POSITIONS})`)
+      console.log(`[PositionManager] Releasing Slot ID: ${slotId} for Token: ${tokenAddress}. (Active: ${this.activePositions.size}/${this.MAX_OPEN_POSITIONS})`)
     } catch (error) {
       console.error(`[PositionManager] Failed to unsubscribe from ${tokenAddress}:`, error)
     }
@@ -75,5 +87,10 @@ export class PositionManager {
 
   getAllActivePositions(): PositionSubscription[] {
     return Array.from(this.activePositions.values())
+  }
+
+  getSlotId(tokenAddress: string): number | null {
+    const position = this.activePositions.get(tokenAddress)
+    return position ? position.subscriptionId : null
   }
 }
