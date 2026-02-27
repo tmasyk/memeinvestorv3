@@ -15,19 +15,24 @@ export class TelegramProcessor {
 
     // Command: /status
     if (trimmedText === '/status') {
-      const activePresetConfig = this.presetManager.getActivePresetConfig()
-      const activePresetName = activePresetConfig ? activePresetConfig.name : 'None'
-      
-      const openTradesCount = await this.prisma.paperTrade.count({
-        where: { status: 'OPEN' }
-      })
+      try {
+        const activePresetConfig = this.presetManager.getActivePresetConfig()
+        const activePresetName = activePresetConfig ? activePresetConfig.name : 'None'
+        
+        const openTradesCount = await this.prisma.paperTrade.count({
+          where: { status: 'OPEN' }
+        })
 
-      return `
+        return `
 🤖 *MemeInvestor V3 Status*
 ---------------------------
 🧠 *Active Brain:* ${activePresetName}
 📈 *Open Trades:* ${openTradesCount}
-      `
+        `
+      } catch (error: any) {
+        console.error('[Telegram] Error handling /status:', error)
+        return `❌ Error fetching status: ${error.message || 'Database connection failed'}`
+      }
     }
 
     // Command: /preset <id>

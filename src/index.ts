@@ -56,12 +56,16 @@ async function main() {
   const scannerService = new ScannerService(filters, riskPlugins, prisma)
   const positionManager = new PositionManager()
   
+  const presetManager = new PresetManager(prisma)
+  // Load default preset
+  await presetManager.loadPreset('bluechip_safe')
+
   // Default strategy to start - will be overridden by PresetManager
   const defaultStrategy = new FixedRiskStrategy(50, 10) 
   
   let telegramService: TelegramService | undefined
   try {
-    telegramService = new TelegramService(config.telegramBotToken, new PresetManager(), prisma)
+    telegramService = new TelegramService(config.telegramBotToken, presetManager, prisma)
   } catch (error) {
     console.error('[Telegram] AUTH FAILURE: Check your token in .env. Continuing without Telegram...')
   }
@@ -74,10 +78,6 @@ async function main() {
   )
 
   const tradingEngine = new TradingEngine(prisma, positionManager)
-
-  const presetManager = new PresetManager()
-  // Load default preset
-  presetManager.loadPreset('bluechip_safe')
 
   const raydiumScanner = new RaydiumScanner(scannerService)
 

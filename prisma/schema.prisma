@@ -48,6 +48,12 @@ model PendingTrade {
   @@index([status])
 }
 
+model Preset {
+  id     String @id
+  name   String
+  config Json
+}
+
 enum PaperTradeStatus {
   OPEN
   CLOSED
