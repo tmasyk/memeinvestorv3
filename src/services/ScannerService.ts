@@ -16,6 +16,22 @@ export class ScannerService {
   }
 
   async processNewToken(rawToken: any): Promise<void> {
+    // 1. Persist Discovery IMMEDIATELY
+    try {
+      await this.prisma.discovery.create({
+        data: {
+          tokenAddress: rawToken.address,
+          mint: rawToken.address, // Usually same as tokenAddress in this context
+          liquidity: rawToken.liquidity || 0,
+          timestamp: new Date()
+        }
+      })
+      console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
+    } catch (error) {
+      console.warn(`[Discovery] Failed to persist token ${rawToken.address}`, error)
+    }
+
+    // 2. Run Filters
     for (const filter of this.filters) {
       const passed = filter.execute(rawToken)
 

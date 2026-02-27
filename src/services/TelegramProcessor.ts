@@ -23,10 +23,25 @@ export class TelegramProcessor {
           where: { status: 'OPEN' }
         })
 
+        // Discovery Stats (24h)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const scannedCount = await this.prisma.discovery.count({
+          where: { timestamp: { gte: oneDayAgo } }
+        })
+        
+        const passedCount = await this.prisma.token.count({
+          where: { 
+            createdAt: { gte: oneDayAgo },
+            status: { in: ['RISK_PASSED', 'FILTER_PASSED'] } 
+          }
+        })
+
         return `
 🤖 *MemeInvestor V3 Status*
 ---------------------------
 🧠 *Active Brain:* ${activePresetName}
+📡 *Tokens Scanned (24h):* ${scannedCount.toLocaleString()}
+🎯 *Tokens Passed (24h):* ${passedCount}
 📈 *Open Trades:* ${openTradesCount}
         `
       } catch (error: any) {

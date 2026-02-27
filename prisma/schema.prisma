@@ -48,10 +48,22 @@ model PendingTrade {
   @@index([status])
 }
 
+model Discovery {
+  id           String   @id @default(uuid())
+  tokenAddress String
+  mint         String
+  liquidity    Float
+  timestamp    DateTime @default(now())
+
+  @@index([tokenAddress])
+  @@index([timestamp])
+}
+
 model Preset {
   id     String @id
   name   String
   config Json
+  jitoTipSol Float? @default(0.001)
 }
 
 enum PaperTradeStatus {

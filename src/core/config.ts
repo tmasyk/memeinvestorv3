@@ -29,6 +29,8 @@ export const config = {
   wsUrl: parsedEnv.data.WS_URL,
   env: parsedEnv.data.ENV,
   jitoBlockEngineUrl: parsedEnv.data.JITO_BLOCK_ENGINE_URL,
-  telegramBotToken: parsedEnv.data.TELEGRAM_BOT_TOKEN
+  telegramBotToken: parsedEnv.data.TELEGRAM_BOT_TOKEN,
+  // Hardcoded constant for Jito simulation rate limit
+  jitoRateLimit: 5 
 }
 // Force rebuild
