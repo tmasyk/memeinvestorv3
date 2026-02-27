@@ -2,13 +2,18 @@ import TelegramBot from 'node-telegram-bot-api'
 import { PrismaClient } from '@prisma/client'
 import { PresetManager } from '../core/PresetManager'
 import { TelegramProcessor } from './TelegramProcessor'
+import { ScannerService } from './ScannerService'
 
 export class TelegramService {
   private bot: TelegramBot | null = null
   private processor: TelegramProcessor
 
-  constructor(token: string, presetManager: PresetManager, prisma: PrismaClient) {
+  constructor(token: string, presetManager: PresetManager, prisma: PrismaClient, scannerService?: ScannerService) {
     this.processor = new TelegramProcessor(presetManager, prisma)
+    
+    if (scannerService) {
+      this.processor.setScannerService(scannerService)
+    }
 
     this.initializeBot(token)
   }

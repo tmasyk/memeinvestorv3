@@ -1,11 +1,13 @@
 import { PrismaClient } from '@prisma/client'
 import { PresetManager } from '../core/PresetManager'
 import { EventBus, EventName } from '../core/EventBus'
+import { ScannerService } from './ScannerService'
 
 export class TelegramProcessor {
   private presetManager: PresetManager
   private prisma: PrismaClient
   private eventBus: EventBus
+  private scannerService: ScannerService | null = null
   private scannedPoolsCount: number = 0
 
   constructor(presetManager: PresetManager, prisma: PrismaClient) {
@@ -13,6 +15,10 @@ export class TelegramProcessor {
     this.prisma = prisma
     this.eventBus = EventBus.getInstance()
     this.setupEventListeners()
+  }
+
+  setScannerService(scannerService: ScannerService): void {
+    this.scannerService = scannerService
   }
 
   private getMainMenuKeyboard(): any {
@@ -36,9 +42,23 @@ export class TelegramProcessor {
   async handleMessage(text: string): Promise<string | any> {
     const trimmedText = text.trim()
 
-    // Command: /start - Always show main menu
+    // Command: /start - Always show main menu and enable trading
     if (trimmedText === '/start') {
+      if (this.scannerService) {
+        this.scannerService.setTradingEnabled(true)
+      }
       return this.handleMessage('/help')
+    }
+
+    // Command: /stop - Disable trading
+    if (trimmedText === '/stop') {
+      if (this.scannerService) {
+        this.scannerService.setTradingEnabled(false)
+      }
+      return {
+        text: '🛑 *Trading Stopped*\n\nBot will continue scanning but will not execute any trades.\n\nUse /start to resume trading.',
+        reply_markup: this.getMainMenuKeyboard()
+      }
     }
 
     // Command: /status or Button: 📊 Status
@@ -65,6 +85,10 @@ export class TelegramProcessor {
         const { config } = await import('../core/config')
         const tradingMode = config.liveTradingEnabled ? 'LIVE' : 'SIMULATION'
 
+        // Trading Enabled Check
+        const tradingEnabled = this.scannerService ? this.scannerService.isTradingActive() : false
+        const tradingStatus = tradingEnabled ? '🟢 Active' : '🔴 Paused'
+
         // Jito Status Check
         const jitoStatus = process.env.JITO_BLOCK_ENGINE_URL && process.env.TRADING_PRIVATE_KEY 
           ? '🟢 Online (Frankfurt)' 
@@ -76,6 +100,7 @@ export class TelegramProcessor {
 ━━━━━━━━━━━━━━━━━━━━
 🚀 *Mode:* ${tradingMode}
 🧠 *Brain:* ${activePresetName}
+🤖 *Trading:* ${tradingStatus}
 ⚡ *Jito:* ${jitoStatus}
 
 📊 *Live Metrics (1h)*
@@ -238,7 +263,8 @@ export class TelegramProcessor {
         text: `
 📚 *Available Commands*
 ━━━━━━━━━━━━━━━━━━━━
-/start - Show main menu
+/start - Show main menu and enable trading
+/stop - Stop trading (scanner continues)
 /status - Check bot status and open trades
 /trades - List last 5 active paper trades and live ROI
 /wallet - Show wallet address and balance

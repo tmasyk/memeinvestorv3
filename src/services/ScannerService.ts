@@ -7,6 +7,7 @@ export class ScannerService {
   private riskPlugins: IRiskPlugin[]
   private prisma: PrismaClient
   private eventBus: EventBus
+  private isTradingEnabled: boolean = true
 
   constructor(filters: IFilterPlugin[], riskPlugins: IRiskPlugin[], prisma: PrismaClient) {
     this.filters = filters
@@ -15,7 +16,21 @@ export class ScannerService {
     this.eventBus = EventBus.getInstance()
   }
 
+  setTradingEnabled(enabled: boolean): void {
+    this.isTradingEnabled = enabled
+    console.log(`[ScannerService] Trading ${enabled ? 'ENABLED' : 'DISABLED'}`)
+  }
+
+  isTradingActive(): boolean {
+    return this.isTradingEnabled
+  }
+
   async processNewToken(rawToken: any): Promise<void> {
+    if (!this.isTradingEnabled) {
+      console.log(`[Scanner] Trading is DISABLED. Skipping token: ${rawToken.address}`)
+      return
+    }
+
     console.log(`[Scanner] Processing new token: ${rawToken.address}`)
     const poolDetectedTime = Date.now()
     this.eventBus.emit(EventName.POOL_DETECTED, { tokenAddress: rawToken.address, poolDetectedTime })

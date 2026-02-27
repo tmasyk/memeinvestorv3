@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { config } from './core/config'
 import { RpcConnectionManager } from './core/RpcConnectionManager'
 import { EventBus } from './core/EventBus'
+import { RequestDispatcher } from './core/RequestDispatcher'
 import { ScannerService } from './services/ScannerService'
 import { TradingEngine } from './services/TradingEngine'
 import { PaperTradingService } from './services/PaperTradingService'
@@ -46,6 +47,7 @@ async function main() {
     }
   })
   const eventBus = EventBus.getInstance()
+  const requestDispatcher = RequestDispatcher.getInstance()
   const rpcManager = RpcConnectionManager.getInstance({
     heartbeatTimeoutMs: 15000,
     reconnectDelayMs: 5000
@@ -75,7 +77,7 @@ async function main() {
   
   let telegramService: TelegramService | undefined
   try {
-    telegramService = new TelegramService(config.telegramBotToken, presetManager, prisma)
+    telegramService = new TelegramService(config.telegramBotToken, presetManager, prisma, scannerService)
   } catch (error) {
     console.error('[Telegram] AUTH FAILURE: Check your token in .env. Continuing without Telegram...')
   }
