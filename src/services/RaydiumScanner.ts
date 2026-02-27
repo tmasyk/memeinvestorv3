@@ -58,6 +58,8 @@ export class RaydiumScanner {
       if (tokenData) {
         console.log(`[RaydiumScanner] New Token Discovered: ${tokenData.address} (${tokenData.symbol})`)
         await this.scannerService.processNewToken(tokenData)
+      } else {
+        console.log(`[RaydiumScanner] Failed to parse token data for tx: ${signature}`)
       }
     } catch (error) {
       console.error(`[RaydiumScanner] Error processing transaction ${signature}:`, error)

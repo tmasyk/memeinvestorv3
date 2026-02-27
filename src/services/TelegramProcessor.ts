@@ -24,25 +24,33 @@ export class TelegramProcessor {
         })
 
         // Discovery Stats (24h)
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
         const scannedCount = await this.prisma.discovery.count({
-          where: { timestamp: { gte: oneDayAgo } }
+          where: { timestamp: { gte: oneHourAgo } }
         })
         
-        const passedCount = await this.prisma.token.count({
-          where: { 
-            createdAt: { gte: oneDayAgo },
-            status: { in: ['RISK_PASSED', 'FILTER_PASSED'] } 
-          }
+        const lastDiscovery = await this.prisma.discovery.findFirst({
+          orderBy: { timestamp: 'desc' }
         })
 
+        // Jito Status Check
+        const jitoStatus = process.env.JITO_BLOCK_ENGINE_URL && process.env.TRADING_PRIVATE_KEY 
+          ? '🟢 Online (Frankfurt)' 
+          : '⚠️ Disabled (Simulation)'
+
         return `
-🤖 *MemeInvestor V3 Status*
+🤖 *MemeInvestor V3 Dashboard*
 ---------------------------
-🧠 *Active Brain:* ${activePresetName}
-📡 *Tokens Scanned (24h):* ${scannedCount.toLocaleString()}
-🎯 *Tokens Passed (24h):* ${passedCount}
-📈 *Open Trades:* ${openTradesCount}
+🧠 *Brain:* ${activePresetName}
+⚡ *Jito:* ${jitoStatus}
+
+📊 *Live Metrics (1h)*
+• Scanned: ${scannedCount.toLocaleString()} pools
+• Active Positions: ${openTradesCount}
+
+🔍 *Latest Scan*
+• Mint: \`${lastDiscovery?.tokenAddress || 'Waiting...'}\`
+• Time: ${lastDiscovery?.timestamp.toLocaleTimeString() || 'N/A'}
         `
       } catch (error: any) {
         console.error('[Telegram] Error handling /status:', error)

@@ -54,6 +54,7 @@ model Discovery {
   mint         String
   liquidity    Float
   timestamp    DateTime @default(now())
+  reason       String?  // Reason for skipping/rejection (e.g., "Slippage", "Filter Failed")
 
   @@index([tokenAddress])
   @@index([timestamp])
