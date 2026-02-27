@@ -8,7 +8,7 @@ const envSchema = z.object({
   RPC_URL: z.string().url(),
   WS_URL: z.string().url().startsWith('wss://'),
   ENV: z.enum(['development', 'production']),
-  JITO_BLOCK_ENGINE_URL: z.string().url(),
+  JITO_BLOCK_ENGINE_URL: z.string().url().optional(),
   TELEGRAM_BOT_TOKEN: z.string()
 })
 
@@ -17,6 +17,10 @@ const parsedEnv = envSchema.safeParse(process.env)
 if (!parsedEnv.success) {
   const missingFields = parsedEnv.error.errors.map((err: z.ZodIssue) => err.path.join('.')).join(', ')
   throw new Error(`FATAL: Missing or invalid environment variables: ${missingFields}`)
+}
+
+if (!parsedEnv.data.JITO_BLOCK_ENGINE_URL) {
+  console.warn('WARNING: JITO_BLOCK_ENGINE_URL is missing. Jito bundles will be disabled, falling back to standard RPC transactions.')
 }
 
 export const config = {
