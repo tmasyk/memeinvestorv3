@@ -62,13 +62,6 @@ export class TelegramProcessor {
     // Command: 🧠 Switch Preset
     if (trimmedText === '🧠 Switch Preset') {
       try {
-        // Fetch all available presets from DB (or fallback to hardcoded if needed)
-        // Since we don't have a getAllPresets method on manager, we'll use Prisma directly or just hardcode the known ones for now
-        // Ideally, PresetManager should expose getAllPresets().
-        
-        // Command: 🧠 Switch Preset
-    if (trimmedText === '🧠 Switch Preset') {
-      try {
         const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
         
         if (presets.length === 0) {
@@ -173,10 +166,10 @@ export class TelegramProcessor {
 
   // Handle Callback Queries (Inline Buttons)
   async handleCallback(data: string): Promise<{ text: string, reply_markup?: any }> {
-    if (data.startsWith('preset_')) {
-      const presetId = data.replace('preset_', '')
-      
-      try {
+    try {
+      if (data.startsWith('preset_')) {
+        const presetId = data.replace('preset_', '')
+        
         const success = await this.presetManager.loadPreset(presetId)
         
         if (!success) return { text: `❌ Failed to load preset: ${presetId}` }
@@ -198,11 +191,11 @@ export class TelegramProcessor {
             inline_keyboard: keyboard
           }
         }
-      } catch (error) {
-        return { text: '❌ Error loading preset.' }
       }
-    }
 
-    return { text: '❓ Unknown interaction' }
+      return { text: '❓ Unknown interaction' }
+    } catch (error) {
+      return { text: '❌ Error processing callback.' }
+    }
   }
 }
