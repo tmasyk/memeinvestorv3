@@ -33,14 +33,21 @@ export class TelegramProcessor {
 
     return {
       inline_keyboard: [
-        [{ text: '📊 Status', callback_data: 'status' }],
-        [{ text: '💼 Trades', callback_data: 'trades' }],
-        [{ text: '👛 Wallet', callback_data: 'wallet' }],
-        [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
-        [{ text: scoutButtonText, callback_data: scoutButtonCallback }],
-        [{ text: '▶️ Start Trading', callback_data: 'start_trading' }],
-        [{ text: '⏸️ Stop Trading', callback_data: 'stop_trading' }],
-        [{ text: '❓ Help', callback_data: 'help' }]
+        [
+          { text: '📊 Status', callback_data: 'status' },
+          { text: '💼 Trades', callback_data: 'trades' }
+        ],
+        [
+          { text: '👛 Wallet', callback_data: 'wallet' },
+          { text: '🧠 Switch Preset', callback_data: 'switch_preset' }
+        ],
+        [
+          { text: scoutButtonText, callback_data: scoutButtonCallback }
+        ],
+        [
+          { text: '▶️ Start Trading', callback_data: 'start_trading' },
+          { text: '⏸️ Stop Trading', callback_data: 'stop_trading' }
+        ]
       ]
     }
   }
