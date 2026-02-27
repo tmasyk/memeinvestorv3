@@ -1,13 +1,24 @@
 import { PrismaClient } from '@prisma/client'
 import { PresetManager } from '../core/PresetManager'
+import { EventBus, EventName } from '../core/EventBus'
 
 export class TelegramProcessor {
   private presetManager: PresetManager
   private prisma: PrismaClient
+  private eventBus: EventBus
+  private scannedPoolsCount: number = 0
 
   constructor(presetManager: PresetManager, prisma: PrismaClient) {
     this.presetManager = presetManager
     this.prisma = prisma
+    this.eventBus = EventBus.getInstance()
+    this.setupEventListeners()
+  }
+
+  private setupEventListeners() {
+    this.eventBus.on(EventName.POOL_SCANNED, () => {
+      this.scannedPoolsCount++
+    })
   }
 
   async handleMessage(text: string): Promise<string | any> {
@@ -25,7 +36,7 @@ export class TelegramProcessor {
 
         // Discovery Stats (24h)
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-        const scannedCount = await this.prisma.discovery.count({
+        const discoveredCount = await this.prisma.discovery.count({
           where: { timestamp: { gte: oneHourAgo } }
         })
         
@@ -51,7 +62,8 @@ export class TelegramProcessor {
 ⚡ *Jito:* ${jitoStatus}
 
 📊 *Live Metrics (1h)*
-• Scanned: ${scannedCount.toLocaleString()} pools
+• Scanned: ${this.scannedPoolsCount.toLocaleString()} pools
+• Discovered: ${discoveredCount.toLocaleString()} tokens
 • Active Positions: ${openTradesCount}
 
 🔍 *Latest Scan*

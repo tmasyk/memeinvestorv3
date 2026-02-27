@@ -20,12 +20,15 @@ export class ScannerService {
 
     let passedFilters = false
     let failedFilterName: string | null = null
+    let failedValue: any = null
 
     for (const filter of this.filters) {
       const passed = filter.execute(rawToken)
 
       if (!passed) {
-        console.debug(`Token ${rawToken.address || 'unknown'} failed filter: ${filter.name}`)
+        const actualValue = this.getFilterValue(rawToken, filter.name)
+        failedValue = actualValue
+        console.log(`[Scanner] Token ${rawToken.address || 'unknown'} rejected: Failed ${filter.name} (Value: ${actualValue})`)
         failedFilterName = filter.name
         break
       }
@@ -69,6 +72,15 @@ export class ScannerService {
       await this.evaluateRisk(rawToken.address)
     } else {
       console.log(`[Scanner] Token ${rawToken.address} REJECTED by filter: ${failedFilterName}. Not writing to Discovery.`)
+    }
+  }
+
+  private getFilterValue(rawToken: any, filterName: string): any {
+    switch (filterName) {
+      case 'MinLiquidity':
+        return `$${rawToken.liquidity || 0}`
+      default:
+        return 'N/A'
     }
   }
 

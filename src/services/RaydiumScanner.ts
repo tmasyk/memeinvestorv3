@@ -1,12 +1,14 @@
 import { Connection, ParsedTransactionWithMeta } from '@solana/web3.js'
 import { config } from '../core/config'
 import { RpcConnectionManager } from '../core/RpcConnectionManager'
+import { EventBus, EventName } from '../core/EventBus'
 import { ScannerService } from './ScannerService'
 
 export class RaydiumScanner {
   private connection: Connection
   private scannerService: ScannerService
   private rpcManager: RpcConnectionManager
+  private eventBus: EventBus
   private raydiumProgramId = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'
   private logsSubscriptionId: number | null = null
 
@@ -16,6 +18,7 @@ export class RaydiumScanner {
     })
     this.scannerService = scannerService
     this.rpcManager = RpcConnectionManager.getInstance()
+    this.eventBus = EventBus.getInstance()
   }
 
   async start() {
@@ -51,6 +54,7 @@ export class RaydiumScanner {
       
       if (isInitialization && logs.signature) {
         console.log(`[RaydiumScanner] Potential new pool detected! Signature: ${logs.signature}`)
+        this.eventBus.emit(EventName.POOL_SCANNED, { signature: logs.signature })
         await this.processTransaction(logs.signature)
       }
     } catch (error) {
