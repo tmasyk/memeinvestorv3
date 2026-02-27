@@ -54,8 +54,8 @@ export class PresetManager {
   // Method to seed DB
   async seedDefaultsIfNeeded() {
     try {
-      // @ts-ignore - Ignoring TS error if model doesn't exist yet, to allow compilation for now
-      const existingPresets = await this.prisma.preset.findMany()
+      // Cast to any to avoid stale editor type errors (verified via npx tsc)
+      const existingPresets = await (this.prisma as any).preset.findMany()
       
       if (existingPresets.length === 0) {
         console.log('[PresetManager] Preset table empty. Seeding defaults...')
@@ -64,8 +64,7 @@ export class PresetManager {
           // Ensure lowercase ID
           const lowerId = id.toLowerCase()
           
-          // @ts-ignore
-          await this.prisma.preset.create({
+          await (this.prisma as any).preset.create({
             data: {
               id: lowerId,
               name: config.name,
@@ -74,6 +73,8 @@ export class PresetManager {
           })
           console.log(`[PresetManager] Seeded preset: ${lowerId}`)
         }
+      } else {
+        console.log(`[PresetManager] Loaded ${existingPresets.length} presets from production DB.`)
       }
     } catch (error) {
       console.error('[PresetManager] Error seeding presets:', error)
