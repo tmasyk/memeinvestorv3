@@ -120,15 +120,20 @@ export class TelegramProcessor {
           where: { status: 'OPEN' }
         })
 
-        // Discovery Stats (24h)
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-        const discoveredCount = await this.prisma.discovery.count({
-          where: { timestamp: { gte: oneHourAgo } }
-        })
-        
+
         const lastDiscovery = await this.prisma.discovery.findFirst({
           orderBy: { timestamp: 'desc' }
         })
+
+        const discoveryStats = await this.prisma.discovery.groupBy({
+          by: ['source' as any],
+          where: { timestamp: { gte: oneHourAgo } },
+          _count: true
+        })
+
+        const sniperCount = discoveryStats.find((s: any) => s.source === 'SNIPER')?._count || 0
+        const scoutCount = discoveryStats.find((s: any) => s.source === 'SCOUT')?._count || 0
 
         // Trading Mode Check
         const { config } = await import('../core/config')
@@ -167,7 +172,8 @@ export class TelegramProcessor {
 
 📊 *Live Metrics (1h)*
 • Scanned: ${this.scannedPoolsCount.toLocaleString()} pools
-• Discovered: ${discoveredCount.toLocaleString()} tokens
+• Sniper: ${sniperCount.toLocaleString()} 🎯
+• Scout: ${scoutCount.toLocaleString()} 🔭
 • Active Positions: ${openTradesCount}
 • Jito Latency (Last 10): ${latencyDisplay}
 
