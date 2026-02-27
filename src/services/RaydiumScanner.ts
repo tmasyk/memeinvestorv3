@@ -30,6 +30,7 @@ export class RaydiumScanner {
           
           if (isInitialization) {
             console.log(`[RaydiumScanner] Potential new pool detected! Signature: ${logs.signature}`)
+            // Await processing to ensure we don't miss logs due to race conditions
             await this.processTransaction(logs.signature)
           }
         },

@@ -19,17 +19,28 @@ export class ScannerService {
     // 1. Persist Discovery IMMEDIATELY
     try {
       console.log(`[Scanner] Attempting DB write for ${rawToken.address}...`)
-      await this.prisma.discovery.create({
-        data: {
-          tokenAddress: rawToken.address,
-          mint: rawToken.address, // Usually same as tokenAddress in this context
-          liquidity: rawToken.liquidity || 0,
-          timestamp: new Date()
-        }
+      
+      // Check exist -> Create if not to avoid duplicates
+      const exists = await this.prisma.discovery.findFirst({
+        where: { tokenAddress: rawToken.address }
       })
-      console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
+      
+      if (!exists) {
+        await this.prisma.discovery.create({
+          data: {
+            tokenAddress: rawToken.address,
+            mint: rawToken.address,
+            liquidity: rawToken.liquidity || 0,
+            timestamp: new Date()
+          }
+        })
+        console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
+      } else {
+        console.log(`[Discovery] Duplicate skipped: ${rawToken.address}`)
+      }
+
     } catch (error: any) {
-      console.error(`[Scanner] DB Write FAILED: ${error.message || error}`)
+      console.error(`[Scanner] DB WRITE ERROR: ${error.message || error}`)
       console.warn(`[Discovery] Failed to persist token ${rawToken.address}`, error)
     }
 
