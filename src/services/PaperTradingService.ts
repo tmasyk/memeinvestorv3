@@ -19,13 +19,13 @@ export class PaperTradingService {
   }
 
   private setupListeners() {
-    this.eventBus.on(EventName.TRADE_QUEUED, () => {
+    this.eventBus.on(EventName.TRADE_QUEUED, (data: any) => {
       console.log('[PaperTradingService] Received TRADE_QUEUED event')
-      this.processQueue()
+      this.processQueue(data)
     })
   }
 
-  async processQueue(): Promise<void> {
+  async processQueue(data?: any): Promise<void> {
     const pendingTrade = await this.prisma.pendingTrade.findFirst({
       where: { status: 'QUEUED' },
       orderBy: { createdAt: 'asc' }
@@ -50,27 +50,20 @@ export class PaperTradingService {
 
     console.log(`[PaperTradingService] 📊 PAPER MODE: Simulating Jito bundle for ${pendingTrade.tokenAddress}`)
 
-    const canExecute = await this.jitoManager.simulateBundle(`sim-${pendingTrade.id}`)
+    const poolDetectedTime = data?.poolDetectedTime || Date.now()
+    const simulationResult = await this.jitoManager.simulateBundle(
+      `sim-${pendingTrade.id}`,
+      pendingTrade.tokenAddress,
+      poolDetectedTime
+    )
 
-    if (!canExecute) {
+    if (!simulationResult.success) {
       console.warn(`[PaperTradingService] Jito Simulation Failed for ${pendingTrade.tokenAddress}. Skipping paper trade.`)
 
       await this.prisma.pendingTrade.update({
         where: { id: pendingTrade.id },
         data: { status: 'FAILED' }
       })
-
-      try {
-        await this.prisma.discovery.updateMany({
-          where: { tokenAddress: pendingTrade.tokenAddress },
-          data: {
-            reason: 'Jito Simulation Failed'
-          }
-        })
-        console.log(`[PaperTradingService] Logged simulation failure for ${pendingTrade.tokenAddress}`)
-      } catch (e) {
-        console.error('[PaperTradingService] Failed to update discovery:', e)
-      }
 
       return
     }

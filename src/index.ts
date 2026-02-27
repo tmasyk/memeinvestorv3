@@ -8,6 +8,8 @@ import { PaperTradingService } from './services/PaperTradingService'
 import { PositionManager } from './services/PositionManager'
 import { PositionMonitor } from './services/PositionMonitor'
 import { PresetManager } from './core/PresetManager'
+import { SecretManager } from './core/SecretManager'
+import { JitoManager } from './core/JitoManager'
 import { TelegramService } from './services/TelegramService'
 import { RaydiumScanner } from './services/RaydiumScanner'
 import { DailyReportService } from './services/DailyReportService'
@@ -59,12 +61,15 @@ async function main() {
     new GiniConcentrationRisk()
   ]
 
-  // 3. Initialize Services
+  // 3. Initialize Core Services
   const scannerService = new ScannerService(filters, riskPlugins, prisma)
   const positionManager = new PositionManager()
   
   const presetManager = new PresetManager(prisma)
   await presetManager.loadPreset('bluechip_safe')
+
+  const secretManager = SecretManager.getInstance()
+  JitoManager.getInstance(secretManager, presetManager, prisma)
 
   const defaultStrategy = new FixedRiskStrategy(50, 10) 
   

@@ -13,7 +13,8 @@ export const PRESETS: Record<string, IPresetConfig> = {
     strategies: [
       { name: 'VelocityPumpStrategy', params: { targetMultiplier: 2, maxMinutes: 5 } },
       { name: 'FixedRiskStrategy', params: { takeProfit: 300, stopLoss: 20 } }
-    ]
+    ],
+    jitoTip: 0.003
   },
   'bluechip_safe': {
     id: 'bluechip_safe',
@@ -27,7 +28,8 @@ export const PRESETS: Record<string, IPresetConfig> = {
     ],
     strategies: [
       { name: 'TrailingStopStrategy', params: { trailPercentage: 15 } }
-    ]
+    ],
+    jitoTip: 0.001
   },
   'moonbag_pro': {
     id: 'moonbag_pro',
@@ -40,6 +42,7 @@ export const PRESETS: Record<string, IPresetConfig> = {
     ],
     strategies: [
       { name: 'MoonbagStrategy', params: {} }
-    ]
+    ],
+    jitoTip: 0.002
   }
 }

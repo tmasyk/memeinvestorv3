@@ -17,6 +17,8 @@ export class ScannerService {
 
   async processNewToken(rawToken: any): Promise<void> {
     console.log(`[Scanner] Processing new token: ${rawToken.address}`)
+    const poolDetectedTime = Date.now()
+    this.eventBus.emit(EventName.POOL_DETECTED, { tokenAddress: rawToken.address, poolDetectedTime })
 
     let passedFilters = false
     let failedFilterName: string | null = null
@@ -69,7 +71,7 @@ export class ScannerService {
 
       console.log(`Token ${rawToken.address} passed all filters and saved to database`)
 
-      await this.evaluateRisk(rawToken.address)
+      await this.evaluateRisk(rawToken.address, poolDetectedTime)
     } else {
       console.log(`[Scanner] Token ${rawToken.address} REJECTED by filter: ${failedFilterName}. Not writing to Discovery.`)
     }
@@ -84,7 +86,7 @@ export class ScannerService {
     }
   }
 
-  async evaluateRisk(tokenAddress: string): Promise<void> {
+  async evaluateRisk(tokenAddress: string, poolDetectedTime: number): Promise<void> {
     const token = await this.prisma.token.findUnique({
       where: { address: tokenAddress }
     })
@@ -129,7 +131,7 @@ export class ScannerService {
         }
       })
       console.log(`Token ${tokenAddress} passed risk check (Score: ${averageScore}). Queued for trade.`)
-      this.eventBus.emit(EventName.TRADE_QUEUED, { tokenAddress, riskScore: averageScore })
+      this.eventBus.emit(EventName.TRADE_QUEUED, { tokenAddress, riskScore: averageScore, poolDetectedTime })
     } else {
       console.log(`Token ${tokenAddress} failed risk check (Score: ${averageScore}). Marked as RISK_FAILED.`)
       try {

@@ -21,4 +21,5 @@ export interface IPresetConfig {
   filters: Array<{ name: string; params: any }>
   risks: Array<{ name: string; params: any; weight: number }>
   strategies: Array<{ name: string; params: any }>
+  jitoTip?: number
 }

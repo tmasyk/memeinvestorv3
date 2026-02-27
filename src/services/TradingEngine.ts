@@ -21,13 +21,13 @@ export class TradingEngine {
   }
 
   private setupListeners() {
-    this.eventBus.on(EventName.TRADE_QUEUED, () => {
+    this.eventBus.on(EventName.TRADE_QUEUED, (data: any) => {
       console.log('[TradingEngine] Received TRADE_QUEUED event')
-      this.processQueue()
+      this.processQueue(data)
     })
   }
 
-  async processQueue(): Promise<void> {
+  async processQueue(data?: any): Promise<void> {
     const pendingTrade = await this.prisma.pendingTrade.findFirst({
       where: { status: 'QUEUED' },
       orderBy: { createdAt: 'asc' }
@@ -56,9 +56,14 @@ export class TradingEngine {
         console.log(`[TradingEngine] 🚀 Executing via Jito Fast-Lane: ${config.jitoBlockEngineUrl}`)
         
         // 1. Simulate Bundle (Safety Check)
-        const canExecute = await jito.simulateBundle(`sim-${pendingTrade.id}`)
+        const poolDetectedTime = data?.poolDetectedTime || Date.now()
+        const simulationResult = await jito.simulateBundle(
+          `sim-${pendingTrade.id}`,
+          pendingTrade.tokenAddress,
+          poolDetectedTime
+        )
         
-        if (!canExecute) {
+        if (!simulationResult.success) {
           console.warn(`[TradingEngine] Jito Simulation Failed for ${pendingTrade.tokenAddress}. Skipping trade to avoid honeypot/loss.`)
           
           await this.prisma.pendingTrade.update({
@@ -84,9 +89,9 @@ export class TradingEngine {
           return
         }
 
-        // 2. Execute Bundle (if live trading is enabled)
+        //2. Execute Bundle (if live trading is enabled)
         if (config.liveTradingEnabled) {
-          const bundleId = await jito.sendBundle(`tx-${pendingTrade.id}`)
+          const bundleId = await jito.sendBundle(`tx-${pendingTrade.id}`, pendingTrade.tokenAddress)
           console.log(`[TradingEngine] Bundle Sent! ID: ${bundleId}`)
         } else {
           console.log(`[TradingEngine] 🚫 LIVE_TRADING_ENABLED=false. Simulation complete - ABORTING real bundle send to block engine.`)
