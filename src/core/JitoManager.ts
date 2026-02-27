@@ -76,6 +76,32 @@ export class JitoManager {
     }
   }
 
+  getAverageLatency(sampleSize: number = 10): number {
+    const latencies = Array.from(this.latencyMetrics.values())
+      .map(m => m.latency)
+      .slice(-sampleSize)
+
+    if (latencies.length === 0) {
+      return 0
+    }
+
+    const sum = latencies.reduce((acc, curr) => acc + curr, 0)
+    return Math.round(sum / latencies.length)
+  }
+
+  getLatencyStatus(): { average: number; target: number; status: string; emoji: string } {
+    const average = this.getAverageLatency(10)
+    const target = this.TARGET_LATENCY_MS
+    const isOnTarget = average <= target
+
+    return {
+      average,
+      target,
+      status: isOnTarget ? 'On Target' : 'Slow',
+      emoji: isOnTarget ? '🟢' : '🔴'
+    }
+  }
+
   private async checkRateLimit(): Promise<void> {
     const now = Date.now()
     const oneSecondAgo = now - this.rateLimitWindowMs

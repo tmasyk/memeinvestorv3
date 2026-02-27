@@ -7,6 +7,7 @@ import { ScannerService } from './ScannerService'
 export class TelegramService {
   private bot: TelegramBot | null = null
   private processor: TelegramProcessor
+  private userChatId: number | null = null
 
   constructor(token: string, presetManager: PresetManager, prisma: PrismaClient, scannerService?: ScannerService) {
     this.processor = new TelegramProcessor(presetManager, prisma)
@@ -100,6 +101,7 @@ export class TelegramService {
     // Global Message Handler
     this.bot.on('message', async (msg) => {
       const chatId = msg.chat.id
+      this.userChatId = chatId
       console.log(`[Telegram] Processing message from Chat ID: ${chatId} - Text: ${msg.text}`)
       
       if (!msg.text) return
@@ -173,8 +175,15 @@ ${milestone.emoji} *[Paper Trade]* +${milestone.percentage}% REACHED!
   }
 
   async sendDailyReport(message: string) {
-    if (!this.bot) return
+    if (!this.bot || !this.userChatId) return
 
     console.log('[TelegramService] Daily Report Generated:\n' + message)
+
+    try {
+      await this.bot.sendMessage(this.userChatId, message, { parse_mode: 'Markdown' })
+      console.log('[TelegramService] Daily Report sent successfully')
+    } catch (error) {
+      console.error('[TelegramService] Failed to send daily report:', error)
+    }
   }
 }

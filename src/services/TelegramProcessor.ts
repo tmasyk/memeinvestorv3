@@ -28,6 +28,8 @@ export class TelegramProcessor {
         [{ text: '💼 Trades', callback_data: 'trades' }],
         [{ text: '👛 Wallet', callback_data: 'wallet' }],
         [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+        [{ text: '▶️ Start Trading', callback_data: 'start_trading' }],
+        [{ text: '⏸️ Stop Trading', callback_data: 'stop_trading' }],
         [{ text: '❓ Help', callback_data: 'help' }]
       ]
     }
@@ -94,6 +96,14 @@ export class TelegramProcessor {
           ? '🟢 Online (Frankfurt)' 
           : '⚠️ Disabled (Simulation)'
 
+        // Jito Latency Check
+        const { JitoManager } = await import('../core/JitoManager')
+        const jitoManager = JitoManager.getInstance()
+        const latencyInfo = jitoManager.getLatencyStatus()
+        const latencyDisplay = latencyInfo.average > 0 
+          ? `${latencyInfo.emoji} ${latencyInfo.average}ms (Target: <${latencyInfo.target}ms - ${latencyInfo.status})`
+          : '⏳ No latency data yet'
+
         return {
           text: `
 🤖 *MemeInvestor V3 Dashboard*
@@ -107,6 +117,7 @@ export class TelegramProcessor {
 • Scanned: ${this.scannedPoolsCount.toLocaleString()} pools
 • Discovered: ${discoveredCount.toLocaleString()} tokens
 • Active Positions: ${openTradesCount}
+• Jito Latency (Last 10): ${latencyDisplay}
 
 🔍 *Latest Scan*
 • Mint: \`${lastDiscovery?.tokenAddress || 'Waiting...'}\`
@@ -314,6 +325,20 @@ export class TelegramProcessor {
         return typeof switchResponse === 'string'
           ? { text: switchResponse }
           : switchResponse
+      }
+
+      if (data === 'start_trading') {
+        const startResponse = await this.handleMessage('/start')
+        return typeof startResponse === 'string'
+          ? { text: startResponse }
+          : startResponse
+      }
+
+      if (data === 'stop_trading') {
+        const stopResponse = await this.handleMessage('/stop')
+        return typeof stopResponse === 'string'
+          ? { text: stopResponse }
+          : stopResponse
       }
 
       if (data.startsWith('preset_')) {

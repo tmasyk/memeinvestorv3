@@ -5,6 +5,9 @@ export class DailyReportService {
   private prisma: PrismaClient
   private telegramService?: TelegramService
   private reportInterval?: NodeJS.Timeout
+  private isRunning: boolean = false
+  private lastReportTime: number = 0
+  private readonly REPORT_INTERVAL_MS = 24 * 60 * 60 * 1000
 
   constructor(prisma: PrismaClient, telegramService?: TelegramService) {
     this.prisma = prisma
@@ -12,26 +15,47 @@ export class DailyReportService {
   }
 
   start() {
+    if (this.isRunning) {
+      console.log('[DailyReportService] Already running, skipping duplicate start')
+      return
+    }
+
     console.log('[DailyReportService] Starting daily performance summary (24h interval)...')
+    this.isRunning = true
 
     this.generateReport()
+    this.lastReportTime = Date.now()
 
     this.reportInterval = setInterval(() => {
       this.generateReport()
-    }, 24 * 60 * 60 * 1000)
+    }, this.REPORT_INTERVAL_MS)
   }
 
   stop() {
+    if (!this.isRunning) {
+      return
+    }
+
     if (this.reportInterval) {
       clearInterval(this.reportInterval)
       this.reportInterval = undefined
-      console.log('[DailyReportService] Daily report service stopped')
     }
+
+    this.isRunning = false
+    console.log('[DailyReportService] Daily report service stopped')
   }
 
   private async generateReport() {
     try {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const now = Date.now()
+      const timeSinceLastReport = now - this.lastReportTime
+
+      if (this.lastReportTime > 0 && timeSinceLastReport < this.REPORT_INTERVAL_MS) {
+        console.log('[DailyReportService] Skipping report - too soon since last report')
+        return
+      }
+
+      const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000)
 
       const totalTrades = await this.prisma.paperTrade.count({
         where: {
@@ -70,6 +94,8 @@ export class DailyReportService {
       `
 
       console.log('[DailyReportService] Daily Report Generated:\n' + message)
+
+      this.lastReportTime = Date.now()
 
       if (this.telegramService) {
         await this.telegramService.sendDailyReport(message)
