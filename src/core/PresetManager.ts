@@ -20,18 +20,31 @@ export class PresetManager {
     // 1. Try to find in File Config (Hardcoded safety)
     let preset = PRESETS[presetId]
 
-    // 2. If not in file, try DB (if we had DB logic hooked up fully)
-    // For now, keeping original logic but making it async compatible
+    // 2. If not in file, try DB
+    if (!preset) {
+      try {
+        const dbPreset = await (this.prisma as any).preset.findUnique({ 
+          where: { id: presetId } 
+        })
+        
+        if (dbPreset) {
+          // Parse JSON config if needed (though IPresetConfig structure is expected)
+          // Assuming dbPreset.config is already a JS object if using Prisma Json type,
+          // OR a string if stored as string. Prisma usually returns object for Json type.
+          preset = typeof dbPreset.config === 'string' 
+            ? JSON.parse(dbPreset.config) 
+            : dbPreset.config
+            
+          // Ensure ID matches
+          if (preset) preset.id = dbPreset.id
+        }
+      } catch (dbError) {
+        console.warn(`[PresetManager] DB lookup failed for ${presetId}:`, dbError)
+      }
+    }
     
     if (!preset) {
-      // Try DB lookup mock
-      // const dbPreset = await this.prisma.preset.findUnique({ where: { id: presetId } })
-      // if (dbPreset) preset = dbPreset.config
-      
-      // Since we are fixing the "empty table" issue, we likely need to READ from DB here too?
-      // The prompt specifically asks to "include a hardcoded fallback" and "automatically create default presets".
-      
-      throw new Error(`Preset with ID '${presetId}' not found.`)
+      throw new Error(`Preset with ID '${presetId}' not found in File or DB.`)
     }
 
     if (this.activePreset) {

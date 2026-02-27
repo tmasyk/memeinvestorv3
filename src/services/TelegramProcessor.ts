@@ -36,23 +36,32 @@ export class TelegramProcessor {
     }
 
     // Command: /preset <id>
-    if (trimmedText.startsWith('/preset ')) {
-      const presetId = trimmedText.split(' ')[1]
-
-      if (!presetId) {
-        return '❌ Error: Please specify a preset ID.'
+    if (trimmedText.startsWith('/preset')) {
+      const parts = trimmedText.split(' ')
+      // Ensure we handle both "/preset" and "/preset <id>" cleanly
+      if (parts.length < 2) {
+        return '❌ Error: Please specify a preset ID (e.g., /preset degenscalp).'
       }
+      
+      const presetId = parts[1].toLowerCase().trim()
 
       try {
-        this.presetManager.loadPreset(presetId)
+        const success = await this.presetManager.loadPreset(presetId)
+        
+        if (!success) {
+           return `❌ Error: Preset '${presetId}' could not be loaded.`
+        }
+
         const config = this.presetManager.getActivePresetConfig()
         
-        // Extract minUsd for display
-        const minLiquidity = config?.filters.find(f => f.name === 'MinLiquidity')?.params.minUsd
+        // Extract minUsd for display - defensive check
+        const liquidityFilter = config?.filters.find(f => f.name === 'MinLiquidity')
+        const minLiquidity = liquidityFilter ? liquidityFilter.params.minUsd : 'N/A'
 
-        return `✅ Swapped brain to: *${config?.name}*\nTarget Liquidity: $${minLiquidity}`
+        return `✅ *Swapped Brain Successfully*\n\n🧠 *Active Preset:* ${config?.name}\n💧 *Target Liquidity:* $${minLiquidity}`
       } catch (error: any) {
-        return `❌ Error: Preset not found or failed to load.`
+        console.error(`[Telegram] Error loading preset '${presetId}':`, error)
+        return `❌ Error: Preset '${presetId}' not found or failed to load. \n\nCheck available presets with /help.`
       }
     }
 
