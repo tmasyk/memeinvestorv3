@@ -15,6 +15,8 @@ export class RpcConnectionManager extends EventEmitter {
   private isConnecting: boolean = false
   private subscriptionCount: number = 0
   private maxSubscriptions: number = 10
+  private subscriptionCallbacks: Map<number, (data: any) => void> = new Map()
+  private nextRequestId: number = 1
 
   private readonly heartbeatTimeoutMs: number
   private readonly reconnectDelayMs: number
@@ -78,6 +80,14 @@ export class RpcConnectionManager extends EventEmitter {
 
         if (message.method === 'slotNotification') {
           this.resetHeartbeat()
+        }
+
+        if (message.params && message.params.result) {
+          const subscriptionId = message.params.result
+          const callback = this.subscriptionCallbacks.get(subscriptionId)
+          if (callback) {
+            callback(message.params)
+          }
         }
 
         this.emit('message', message)
@@ -184,5 +194,172 @@ export class RpcConnectionManager extends EventEmitter {
 
   isReady(): boolean {
     return this.isConnected() && this.subscriptionCount > 0
+  }
+
+  async subscribeToLogs(
+    programId: string,
+    callback: (logs: any) => void
+  ): Promise<number> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected')
+    }
+
+    if (this.getAvailableSubscriptions() <= 0) {
+      throw new Error('No available subscription slots')
+    }
+
+    const requestId = this.nextRequestId++
+
+    const message = {
+      jsonrpc: '2.0',
+      id: requestId,
+      method: 'logsSubscribe',
+      params: [
+        {
+          mentions: [programId]
+        },
+        {
+          commitment: 'confirmed'
+        }
+      ]
+    }
+
+    this.ws.send(JSON.stringify(message))
+
+    const subscriptionId = await new Promise<number>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Subscription timeout'))
+      }, 5000)
+
+      const messageHandler = (msg: any) => {
+        if (msg.id === requestId) {
+          clearTimeout(timeout)
+          this.subscriptionCallbacks.set(msg.result, callback)
+          resolve(msg.result)
+        }
+      }
+
+      this.once('message', messageHandler)
+    })
+
+    this.subscriptionCount++
+    return subscriptionId
+  }
+
+  async subscribeToAccount(
+    publicKey: string,
+    callback: (accountInfo: any) => void
+  ): Promise<number> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected')
+    }
+
+    if (this.getAvailableSubscriptions() <= 0) {
+      throw new Error('No available subscription slots')
+    }
+
+    const requestId = this.nextRequestId++
+
+    const message = {
+      jsonrpc: '2.0',
+      id: requestId,
+      method: 'accountSubscribe',
+      params: [
+        publicKey,
+        {
+          encoding: 'base64',
+          commitment: 'confirmed'
+        }
+      ]
+    }
+
+    this.ws.send(JSON.stringify(message))
+
+    const subscriptionId = await new Promise<number>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Subscription timeout'))
+      }, 5000)
+
+      const messageHandler = (msg: any) => {
+        if (msg.id === requestId) {
+          clearTimeout(timeout)
+          this.subscriptionCallbacks.set(msg.result, callback)
+          resolve(msg.result)
+        }
+      }
+
+      this.once('message', messageHandler)
+    })
+
+    this.subscriptionCount++
+    return subscriptionId
+  }
+
+  async unsubscribe(subscriptionId: number): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected')
+    }
+
+    const requestId = this.nextRequestId++
+
+    const message = {
+      jsonrpc: '2.0',
+      id: requestId,
+      method: 'logsUnsubscribe',
+      params: [subscriptionId]
+    }
+
+    this.ws.send(JSON.stringify(message))
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Unsubscribe timeout'))
+      }, 5000)
+
+      const messageHandler = (msg: any) => {
+        if (msg.id === requestId) {
+          clearTimeout(timeout)
+          this.subscriptionCallbacks.delete(subscriptionId)
+          this.subscriptionCount--
+          resolve()
+        }
+      }
+
+      this.once('message', messageHandler)
+    })
+  }
+
+  async unsubscribeAccount(subscriptionId: number): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected')
+    }
+
+    const requestId = this.nextRequestId++
+
+    const message = {
+      jsonrpc: '2.0',
+      id: requestId,
+      method: 'accountUnsubscribe',
+      params: [subscriptionId]
+    }
+
+    this.ws.send(JSON.stringify(message))
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Unsubscribe timeout'))
+      }, 5000)
+
+      const messageHandler = (msg: any) => {
+        if (msg.id === requestId) {
+          clearTimeout(timeout)
+          this.subscriptionCallbacks.delete(subscriptionId)
+          this.subscriptionCount--
+          resolve()
+        }
+      }
+
+      this.once('message', messageHandler)
+    })
   }
 }

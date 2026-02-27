@@ -1,27 +1,22 @@
 import { PrismaClient } from '@prisma/client'
 import { PositionManager } from '../services/PositionManager'
 import { TrailingStopStrategy } from '../plugins/strategies/TrailingStopStrategy'
-import { PositionMonitor } from '../services/PositionMonitor'
+import { EventBus, EventName } from '../core/EventBus'
 
 const prisma = new PrismaClient()
 const positionManager = new PositionManager()
+const eventBus = EventBus.getInstance()
 
-// Strategy: 15% Trailing Stop
 const strategy = new TrailingStopStrategy(15)
-
-const positionMonitor = new PositionMonitor(prisma, positionManager, strategy)
 
 async function main() {
   try {
     console.log('=== Testing Trailing Stop Strategy ===')
 
-    // 1. Clear Database
-    console.log('Clearing PaperTrades table...')
     await prisma.paperTrade.deleteMany()
 
-    // 2. Insert Mock Trade
     console.log('Inserting mock trade...')
-    await prisma.paperTrade.create({
+    const trade = await prisma.paperTrade.create({
       data: {
         tokenAddress: 'TOKEN_TRAIL',
         amount: 1000,
@@ -30,24 +25,63 @@ async function main() {
       }
     })
 
-    // Manually track positions in PositionManager
-    positionManager.trackPosition('TOKEN_TRAIL')
+    const vaultAddress = `${trade.tokenAddress.slice(0, 32)}Vault`
+    await positionManager.trackPosition(trade.tokenAddress, vaultAddress)
 
-    // 3. Simulate Price Movement
-    
-    // Tick 1: Price pumps to $1.50 (New High Watermark)
+    eventBus.emit(EventName.POSITION_OPENED, {
+      tokenAddress: trade.tokenAddress,
+      entryPrice: 1.00,
+      vaultAddress: vaultAddress
+    })
+
     console.log('\nTick 1: Price -> $1.50')
-    await positionMonitor.evaluateOpenPositions({ 'TOKEN_TRAIL': 1.50 })
+    const mockAccountData1 = {
+      method: 'accountNotification',
+      params: {
+        subscription: 1,
+        result: {
+          value: {
+            data: [Buffer.alloc(72)]
+          }
+        }
+      }
+    }
+    eventBus.emit('message', mockAccountData1)
 
-    // Tick 2: Price pumps to $2.00 (New High Watermark)
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     console.log('Tick 2: Price -> $2.00')
-    await positionMonitor.evaluateOpenPositions({ 'TOKEN_TRAIL': 2.00 })
+    const mockAccountData2 = {
+      method: 'accountNotification',
+      params: {
+        subscription: 1,
+        result: {
+          value: {
+            data: [Buffer.alloc(72)]
+          }
+        }
+      }
+    }
+    eventBus.emit('message', mockAccountData2)
 
-    // Tick 3: Price dumps to $1.60 (20% drop from $2.00) -> Should Trigger Exit (15% Trail)
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     console.log('Tick 3: Price -> $1.60')
-    await positionMonitor.evaluateOpenPositions({ 'TOKEN_TRAIL': 1.60 })
+    const mockAccountData3 = {
+      method: 'accountNotification',
+      params: {
+        subscription: 1,
+        result: {
+          value: {
+            data: [Buffer.alloc(72)]
+          }
+        }
+      }
+    }
+    eventBus.emit('message', mockAccountData3)
 
-    // 5. Verify Results
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     console.log('\n=== Verification ===')
     const closedTrade = await prisma.paperTrade.findFirst({
       where: { tokenAddress: 'TOKEN_TRAIL' }

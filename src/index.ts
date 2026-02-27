@@ -4,6 +4,7 @@ import { RpcConnectionManager } from './core/RpcConnectionManager'
 import { EventBus } from './core/EventBus'
 import { ScannerService } from './services/ScannerService'
 import { TradingEngine } from './services/TradingEngine'
+import { PaperTradingService } from './services/PaperTradingService'
 import { PositionManager } from './services/PositionManager'
 import { PositionMonitor } from './services/PositionMonitor'
 import { PresetManager } from './core/PresetManager'
@@ -23,12 +24,10 @@ import { MoonbagStrategy } from './plugins/strategies/MoonbagStrategy'
 // Global Error Handlers
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[System] Unhandled Rejection:', reason)
-  // Do not exit the process for unhandled rejections (often network/telegram related)
 })
 
 process.on('uncaughtException', (error) => {
   console.error('[System] Uncaught Exception:', error)
-  // Do not exit the process for uncaught exceptions
 })
 
 async function main() {
@@ -41,12 +40,7 @@ async function main() {
       db: {
         url: config.databaseUrl
       }
-    },
-    // Resilient Connection Pool
-    // Note: These are passed as query parameters in the connection string usually,
-    // but if the driver supports it here we can add. 
-    // Prisma recommends adding ?connection_limit=20&pool_timeout=30 to the DATABASE_URL.
-    // We will assume the user updates the .env, but we can't force it here easily without parsing.
+    }
   })
   const eventBus = EventBus.getInstance()
   const rpcManager = RpcConnectionManager.getInstance({
@@ -56,7 +50,7 @@ async function main() {
 
   // 2. Initialize Plugins
   const filters = [
-    new MinLiquidityFilter(1000) // Default safe-ish
+    new MinLiquidityFilter(1000)
   ]
   
   const riskPlugins = [
@@ -69,10 +63,8 @@ async function main() {
   const positionManager = new PositionManager()
   
   const presetManager = new PresetManager(prisma)
-  // Load default preset
   await presetManager.loadPreset('bluechip_safe')
 
-  // Default strategy to start - will be overridden by PresetManager
   const defaultStrategy = new FixedRiskStrategy(50, 10) 
   
   let telegramService: TelegramService | undefined
@@ -89,7 +81,12 @@ async function main() {
     telegramService
   )
 
-  const tradingEngine = new TradingEngine(prisma, positionManager)
+  // Select trading engine based on LIVE_TRADING_ENABLED
+  const tradingEngine = config.liveTradingEnabled 
+    ? new TradingEngine(prisma, positionManager)
+    : new PaperTradingService(prisma, positionManager)
+
+  console.log(`[System] Trading Mode: ${config.liveTradingEnabled ? 'LIVE' : 'PAPER (SIMULATION)'}`)
 
   const raydiumScanner = new RaydiumScanner(scannerService)
 
@@ -101,16 +98,21 @@ async function main() {
     console.log('[System] RPC Connected.')
   })
 
+  rpcManager.on('disconnected', () => {
+    console.warn('[System] RPC Disconnected. Reconnecting in 5s...')
+  })
+
   // 5. Start Raydium Scanner
   console.log('[System] Starting Raydium Scanner...')
-  raydiumScanner.start()
+  await raydiumScanner.start()
 
   console.log(`[System] V3 Engine Online. Environment: ${config.env}`)
   console.log('[System] Listening for Raydium Initializations...')
 
-  // Keep process alive
+  // Graceful Shutdown
   process.on('SIGINT', async () => {
     console.log('Shutting down...')
+    await raydiumScanner.stop()
     rpcManager.disconnect()
     await prisma.$disconnect()
     process.exit(0)

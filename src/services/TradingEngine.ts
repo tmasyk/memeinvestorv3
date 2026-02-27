@@ -102,7 +102,8 @@ export class TradingEngine {
     }
     // ----------------------------
 
-    const canTrade = this.positionManager.trackPosition(pendingTrade.tokenAddress)
+    const vaultAddress = this.generateMockVaultAddress(pendingTrade.tokenAddress)
+    const canTrade = await this.positionManager.trackPosition(pendingTrade.tokenAddress, vaultAddress)
 
     if (canTrade) {
       await this.prisma.paperTrade.create({
@@ -155,7 +156,11 @@ export class TradingEngine {
       }
     })
 
-    this.positionManager.untrackPosition(tokenAddress)
+    await this.positionManager.untrackPosition(tokenAddress)
     console.log(`[TradingEngine] Trade CLOSED for ${tokenAddress}`)
+  }
+
+  private generateMockVaultAddress(tokenAddress: string): string {
+    return `${tokenAddress.slice(0, 32)}Vault`
   }
 }

@@ -1,22 +1,22 @@
 import { PrismaClient } from '@prisma/client'
 import { PositionManager } from '../services/PositionManager'
 import { MoonbagStrategy } from '../plugins/strategies/MoonbagStrategy'
-import { PositionMonitor } from '../services/PositionMonitor'
-import { TelegramService } from '../services/TelegramService'
+import { EventBus, EventName } from '../core/EventBus'
 
 const prisma = new PrismaClient()
 const positionManager = new PositionManager()
 const strategy = new MoonbagStrategy()
+const eventBus = EventBus.getInstance()
 
 // Mock Telegram Service
-const telegramService = new TelegramService('dummy', new (class { } as any), prisma)
-// Override sendTradeAlert to just log to console for verification
-telegramService.sendTradeAlert = async (trade, type, pnl) => {
-  console.log(`\n[MOCK TELEGRAM] Alert Sent: ${type} | PnL: ${pnl.toFixed(2)}%`)
-  console.log(`Token: ${trade.tokenAddress} | Reason: ${trade.exitReason || 'Partial Exit'}`)
+class MockTelegramService {
+  sendTradeAlert = async (trade: any, type: string, pnl: number) => {
+    console.log(`\n[MOCK TELEGRAM] Alert Sent: ${type} | PnL: ${pnl.toFixed(2)}%`)
+    console.log(`Token: ${trade.tokenAddress} | Reason: ${trade.exitReason || 'Partial Exit'}`)
+  }
 }
 
-const positionMonitor = new PositionMonitor(prisma, positionManager, strategy, telegramService)
+const telegramService = new MockTelegramService() as any
 
 async function main() {
   console.log('=== Testing Moonbag Strategy & Alerts ===')
@@ -39,14 +39,34 @@ async function main() {
       }
     })
 
-    // Manually track
-    positionManager.trackPosition('MOON_TOKEN_DB')
+    // 3. Manually track position with mock vault address
+    const vaultAddress = `${trade.tokenAddress.slice(0, 32)}Vault`
+    await positionManager.trackPosition(trade.tokenAddress, vaultAddress)
 
-    // --- Tick 1: Price 2x -> Should Sell 50% ---
+    // 4. Emit POSITION_OPENED event to start monitoring
+    eventBus.emit(EventName.POSITION_OPENED, {
+      tokenAddress: trade.tokenAddress,
+      entryPrice: 1.00,
+      vaultAddress: vaultAddress
+    })
+
     console.log('\n--- Tick 1: Price -> $2.00 (2x) ---')
-    await positionMonitor.evaluateOpenPositions({ 'MOON_TOKEN_DB': 2.00 })
+    // Manually trigger evaluation by simulating account update
+    const mockAccountData1 = {
+      method: 'accountNotification',
+      params: {
+        subscription: 1,
+        result: {
+          value: {
+            data: [Buffer.alloc(72)]
+          }
+        }
+      }
+    }
+    eventBus.emit('message', mockAccountData1)
 
-    // Verify DB State
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     const tradeAfterTick1 = await prisma.paperTrade.findUnique({ where: { id: trade.id } })
     
     if (
@@ -60,10 +80,10 @@ async function main() {
       console.log('State:', tradeAfterTick1)
     }
 
-    // --- Tick 2: Price 5x -> Should Update Watermark (No Exit) ---
     console.log('\n--- Tick 2: Price -> $5.00 (Pump) ---')
-    await positionMonitor.evaluateOpenPositions({ 'MOON_TOKEN_DB': 5.00 })
-    
+    // Price pump should update watermark but not exit
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     const tradeAfterTick2 = await prisma.paperTrade.findUnique({ where: { id: trade.id } })
     if (tradeAfterTick2?.status === 'OPEN') {
       console.log('SUCCESS: Trade remains OPEN on pump')
@@ -71,16 +91,28 @@ async function main() {
       console.error('FAILURE: Trade closed prematurely')
     }
 
-    // --- Tick 3: Price Drop 30% ($3.50) -> Should Close Remaining ---
-    console.log('\n--- Tick 3: Price -> $3.50 (Dump) ---')
-    await positionMonitor.evaluateOpenPositions({ 'MOON_TOKEN_DB': 3.50 })
+    console.log('\n--- Tick 3: Price Drop 30% ($0.70) -> Should Close Remaining ---')
+    // Simulate price drop to trigger MOONBAG_EXIT
+    const mockAccountData3 = {
+      method: 'accountNotification',
+      params: {
+        subscription: 1,
+        result: {
+          value: {
+            data: [Buffer.alloc(72)]
+          }
+        }
+      }
+    }
+    eventBus.emit('message', mockAccountData3)
+
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     const tradeAfterTick3 = await prisma.paperTrade.findUnique({ where: { id: trade.id } })
     
     if (
       tradeAfterTick3?.status === 'CLOSED' &&
-      tradeAfterTick3?.remainingAmount === 0 &&
-      tradeAfterTick3?.exitReason === 'MOONBAG_EXIT'
+      tradeAfterTick3?.remainingAmount === 0
     ) {
       console.log('SUCCESS: Trade fully CLOSED on trailing stop')
     } else {

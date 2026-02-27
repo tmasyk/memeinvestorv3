@@ -16,60 +16,60 @@ export class ScannerService {
   }
 
   async processNewToken(rawToken: any): Promise<void> {
-    // 1. Persist Discovery IMMEDIATELY
-    try {
-      console.log(`[Scanner] Attempting DB write for ${rawToken.address}...`)
-      
-      // Check exist -> Create if not to avoid duplicates
-      const exists = await this.prisma.discovery.findFirst({
-        where: { tokenAddress: rawToken.address }
-      })
-      
-      if (!exists) {
-        await this.prisma.discovery.create({
-          data: {
-            tokenAddress: rawToken.address,
-            mint: rawToken.address,
-            liquidity: rawToken.liquidity || 0,
-            timestamp: new Date()
-          }
-        })
-        console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
-      } else {
-        console.log(`[Discovery] Duplicate skipped: ${rawToken.address}`)
-      }
+    console.log(`[Scanner] Processing new token: ${rawToken.address}`)
 
-    } catch (error: any) {
-      console.error(`[Scanner] DB WRITE ERROR: ${error.message || error}`)
-      console.warn(`[Discovery] Failed to persist token ${rawToken.address}`, error)
-    }
+    let passedFilters = false
+    let failedFilterName: string | null = null
 
-    // 2. Run Filters
     for (const filter of this.filters) {
       const passed = filter.execute(rawToken)
 
       if (!passed) {
         console.debug(`Token ${rawToken.address || 'unknown'} failed filter: ${filter.name}`)
-        return
+        failedFilterName = filter.name
+        break
       }
     }
 
-    await this.prisma.token.create({
-      data: {
-        address: rawToken.address,
-        symbol: rawToken.symbol,
-        name: rawToken.name,
-        decimals: rawToken.decimals,
-        liquidity: rawToken.liquidity,
-        volume24h: rawToken.volume24h,
-        status: 'FILTER_PASSED'
-      }
-    })
+    passedFilters = failedFilterName === null
 
-    console.log(`Token ${rawToken.address} passed all filters and saved to database`)
-    
-    // Immediately evaluate risk
-    await this.evaluateRisk(rawToken.address)
+    if (passedFilters) {
+      console.log(`[Scanner] Token ${rawToken.address} PASSED all filters. Writing to Discovery...`)
+
+      try {
+        await this.prisma.discovery.create({
+          data: {
+            tokenAddress: rawToken.address,
+            mint: rawToken.address,
+            liquidity: rawToken.liquidity || 0,
+            timestamp: new Date(),
+            reason: null
+          }
+        })
+        console.log(`[Discovery] Tracked: ${rawToken.address} | Liq: $${rawToken.liquidity}`)
+      } catch (error: any) {
+        console.error(`[Scanner] DB WRITE ERROR: ${error.message || error}`)
+        console.warn(`[Discovery] Failed to persist token ${rawToken.address}`, error)
+      }
+
+      await this.prisma.token.create({
+        data: {
+          address: rawToken.address,
+          symbol: rawToken.symbol,
+          name: rawToken.name,
+          decimals: rawToken.decimals,
+          liquidity: rawToken.liquidity,
+          volume24h: rawToken.volume24h,
+          status: 'FILTER_PASSED'
+        }
+      })
+
+      console.log(`Token ${rawToken.address} passed all filters and saved to database`)
+
+      await this.evaluateRisk(rawToken.address)
+    } else {
+      console.log(`[Scanner] Token ${rawToken.address} REJECTED by filter: ${failedFilterName}. Not writing to Discovery.`)
+    }
   }
 
   async evaluateRisk(tokenAddress: string): Promise<void> {
@@ -94,7 +94,6 @@ export class ScannerService {
         totalScore += score
       } catch (error) {
         console.error(`Risk plugin ${plugin.name} failed for ${tokenAddress}:`, error)
-        // Treat error as high risk (100)
         totalScore += 100
       }
     }
@@ -121,6 +120,16 @@ export class ScannerService {
       this.eventBus.emit(EventName.TRADE_QUEUED, { tokenAddress, riskScore: averageScore })
     } else {
       console.log(`Token ${tokenAddress} failed risk check (Score: ${averageScore}). Marked as RISK_FAILED.`)
+      try {
+        await this.prisma.discovery.updateMany({
+          where: { tokenAddress: tokenAddress },
+          data: {
+            reason: `Risk check failed (Score: ${averageScore})`
+          }
+        })
+      } catch (e) {
+        console.error('[Scanner] Failed to update discovery with reason:', e)
+      }
     }
   }
 }

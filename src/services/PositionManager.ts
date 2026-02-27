@@ -1,37 +1,79 @@
+import { RpcConnectionManager } from '../core/RpcConnectionManager'
+
+interface PositionSubscription {
+  tokenAddress: string
+  subscriptionId: number
+  vaultAddress: string
+}
+
 export class PositionManager {
   private readonly MAX_OPEN_POSITIONS = 9
-  private activeSubscriptions: string[] = []
+  private rpcManager: RpcConnectionManager
+  private activePositions: Map<string, PositionSubscription> = new Map()
 
-  trackPosition(tokenAddress: string): boolean {
-    if (this.activeSubscriptions.length >= this.MAX_OPEN_POSITIONS) {
+  constructor() {
+    this.rpcManager = RpcConnectionManager.getInstance()
+  }
+
+  async trackPosition(tokenAddress: string, vaultAddress: string): Promise<boolean> {
+    if (this.activePositions.size >= this.MAX_OPEN_POSITIONS) {
       console.warn(`[PositionManager] REJECTED: Max positions reached (${this.MAX_OPEN_POSITIONS})`)
       return false
     }
 
-    if (this.activeSubscriptions.includes(tokenAddress)) {
+    if (this.activePositions.has(tokenAddress)) {
       console.warn(`[PositionManager] SKIPPING: Already tracking ${tokenAddress}`)
       return true
     }
 
-    this.activeSubscriptions.push(tokenAddress)
-    console.log(`[PositionManager] Subscribed to ${tokenAddress} (Active: ${this.activeSubscriptions.length}/${this.MAX_OPEN_POSITIONS})`)
-    return true
+    try {
+      const subscriptionId = await this.rpcManager.subscribeToAccount(
+        vaultAddress,
+        (accountInfo) => {
+          console.log(`[PositionManager] Account update for ${tokenAddress}`)
+        }
+      )
+
+      this.activePositions.set(tokenAddress, {
+        tokenAddress,
+        subscriptionId,
+        vaultAddress
+      })
+
+      console.log(`[PositionManager] Subscribed to ${tokenAddress} vault (Active: ${this.activePositions.size}/${this.MAX_OPEN_POSITIONS})`)
+      return true
+    } catch (error) {
+      console.error(`[PositionManager] Failed to subscribe to ${tokenAddress}:`, error)
+      return false
+    }
   }
 
-  untrackPosition(tokenAddress: string): void {
-    const index = this.activeSubscriptions.indexOf(tokenAddress)
-    if (index === -1) {
+  async untrackPosition(tokenAddress: string): Promise<void> {
+    const position = this.activePositions.get(tokenAddress)
+    
+    if (!position) {
       console.warn(`[PositionManager] SKIPPING: Not tracking ${tokenAddress}`)
       return
     }
 
-    // In live mode, this sends an 'accountUnsubscribe' JSON-RPC message via the Singleton WebSocket.
-    // It must NEVER close the physical connection.
-    this.activeSubscriptions.splice(index, 1)
-    console.log(`[PositionManager] Unsubscribed from ${tokenAddress} via JSON-RPC. Slot released. (Active: ${this.activeSubscriptions.length}/${this.MAX_OPEN_POSITIONS})`)
+    try {
+      await this.rpcManager.unsubscribeAccount(position.subscriptionId)
+      this.activePositions.delete(tokenAddress)
+      console.log(`[PositionManager] Unsubscribed from ${tokenAddress} vault via singleton WebSocket. Slot released. (Active: ${this.activePositions.size}/${this.MAX_OPEN_POSITIONS})`)
+    } catch (error) {
+      console.error(`[PositionManager] Failed to unsubscribe from ${tokenAddress}:`, error)
+    }
   }
 
   getActivePositionsCount(): number {
-    return this.activeSubscriptions.length
+    return this.activePositions.size
+  }
+
+  getActivePosition(tokenAddress: string): PositionSubscription | undefined {
+    return this.activePositions.get(tokenAddress)
+  }
+
+  getAllActivePositions(): PositionSubscription[] {
+    return Array.from(this.activePositions.values())
   }
 }
