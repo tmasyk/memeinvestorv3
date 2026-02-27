@@ -48,9 +48,9 @@ export class TradingEngine {
       data: { status: 'PROCESSING' }
     })
 
-    const buyAmount = 0.05
-    if (buyAmount > 0.05) {
-      throw new Error("Safety: Buy amount exceeds test limit")
+    const buyAmount = Math.min(0.05, config.maxTradeSol)
+    if (buyAmount !== config.maxTradeSol) {
+      console.log(`[Safety] Capping trade at ${buyAmount} SOL per MAX_TRADE_SOL rule.`)
     }
 
     // --- JITO EXECUTION BLOCK ---

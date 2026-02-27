@@ -3,20 +3,24 @@ import { PrismaClient } from '@prisma/client'
 import { PresetManager } from '../core/PresetManager'
 import { TelegramProcessor } from './TelegramProcessor'
 import { ScannerService } from './ScannerService'
+import { EventBus, EventName } from '../core/EventBus'
 
 export class TelegramService {
   private bot: TelegramBot | null = null
   private processor: TelegramProcessor
   private userChatId: number | null = null
+  private eventBus: EventBus
 
   constructor(token: string, presetManager: PresetManager, prisma: PrismaClient, scannerService?: ScannerService) {
     this.processor = new TelegramProcessor(presetManager, prisma)
+    this.eventBus = EventBus.getInstance()
     
     if (scannerService) {
       this.processor.setScannerService(scannerService)
     }
 
     this.initializeBot(token)
+    this.setupEventListeners()
   }
 
   private async initializeBot(rawToken: string) {
@@ -185,5 +189,27 @@ ${milestone.emoji} *[Paper Trade]* +${milestone.percentage}% REACHED!
     } catch (error) {
       console.error('[TelegramService] Failed to send daily report:', error)
     }
+  }
+
+  private setupEventListeners() {
+    this.eventBus.on(EventName.PROFIT_ALERT, async (data: any) => {
+      if (!this.bot || !this.userChatId) return
+
+      const message = `
+🚀 *PAPER TRADE PROFIT:* +${data.profitPercentage.toFixed(0)}%
+━━━━━━━━━━━━━━━━━━━━
+🪙 *Token:* \`${data.tokenAddress}\`
+🧠 *Preset:* ${data.presetName}
+💰 *Entry:* ${data.entryPrice.toFixed(4)} SOL
+📈 *Current:* ${data.currentPrice.toFixed(4)} SOL
+      `
+
+      try {
+        await this.bot.sendMessage(this.userChatId, message, { parse_mode: 'Markdown' })
+        console.log(`[TelegramService] Profit alert sent for ${data.tokenAddress}`)
+      } catch (error) {
+        console.error('[TelegramService] Failed to send profit alert:', error)
+      }
+    })
   }
 }

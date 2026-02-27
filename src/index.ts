@@ -92,7 +92,7 @@ async function main() {
   // Select trading engine based on LIVE_TRADING_ENABLED
   const tradingEngine = config.liveTradingEnabled 
     ? new TradingEngine(prisma, positionManager)
-    : new PaperTradingService(prisma, positionManager)
+    : new PaperTradingService(prisma, positionManager, presetManager)
 
   console.log(`[System] Trading Mode: ${config.liveTradingEnabled ? 'LIVE' : 'PAPER (SIMULATION)'}`)
 
