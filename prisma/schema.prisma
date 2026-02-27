@@ -16,15 +16,15 @@ enum TokenStatus {
 }
 
 model Token {
-  id        String     @id @default(uuid())
-  address   String     @unique
-  symbol    String?
-  name      String?
-  decimals  Int?
-  liquidity Float?
-  volume24h Float?
-  status    TokenStatus @default(PENDING)
-  createdAt DateTime   @default(now())
+  id         String      @id @default(uuid())
+  address    String      @unique
+  symbol     String?
+  name       String?
+  decimals   Int?
+  liquidity  Float?
+  volume24h  Float?
+  status     TokenStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
 
   @@index([address])
   @@index([status])
@@ -49,16 +49,16 @@ model PendingTrade {
 }
 
 model Discovery {
-  id             String   @id @default(uuid())
-  tokenAddress    String
-  mint           String
-  liquidity       Float
-  timestamp       DateTime @default(now())
-  reason          String?  // Reason for skipping/rejection (e.g., "Slippage", "Filter Failed")
-  source          String   @default("SNIPER") // Source: "SNIPER" or "SCOUT"
-  momentumRatio    Float?  // Volume-to-liquidity ratio from MomentumFilter
-  whaleScore       Int     @default(0) // Future Whale Watcher plugin
-  paperTrades    PaperTrade[]
+  id            String       @id @default(uuid())
+  tokenAddress  String
+  mint          String
+  liquidity     Float
+  timestamp     DateTime     @default(now())
+  reason        String?      // Reason for skipping/rejection (e.g., "Slippage", "Filter Failed")
+  source        String       @default("SNIPER") // Source: "SNIPER" or "SCOUT"
+  momentumRatio Float?       // Volume-to-liquidity ratio from MomentumFilter
+  whaleScore    Int          @default(0) // Future Whale Watcher plugin
+  paperTrades   PaperTrade[]
 
   @@index([tokenAddress])
   @@index([timestamp])
@@ -66,18 +66,18 @@ model Discovery {
 }
 
 model Whitelist {
-  id        String   @id @default(uuid())
-  mint      String   @unique
-  symbol    String?
-  addedAt   DateTime @default(now())
+  id      String   @id @default(uuid())
+  mint    String   @unique
+  symbol  String?
+  addedAt DateTime @default(now())
 
   @@index([mint])
 }
 
 model Preset {
-  id     String @id
-  name   String
-  config Json
+  id         String @id
+  name       String
+  config     Json
   jitoTipSol Float? @default(0.001)
 }
 
@@ -87,18 +87,18 @@ enum PaperTradeStatus {
 }
 
 model PaperTrade {
-  id           String           @id @default(uuid())
-  tokenAddress String
-  amount       Float
-  entryPrice   Float
-  exitPrice    Float?
-  exitReason   String?
-  didTakeInitialProfit Boolean @default(false)
-  remainingAmount Float?
-  status       PaperTradeStatus @default(OPEN)
-  createdAt    DateTime         @default(now())
-  discoveryId   String?
-  discovery     Discovery?  @relation(fields: [discoveryId], references: [id])
+  id                   String           @id @default(uuid())
+  tokenAddress         String
+  amount               Float
+  entryPrice           Float
+  exitPrice            Float?
+  exitReason           String?
+  didTakeInitialProfit Boolean          @default(false)
+  remainingAmount      Float?
+  status               PaperTradeStatus @default(OPEN)
+  createdAt            DateTime         @default(now())
+  discoveryId          String?
+  discovery            Discovery?       @relation(fields: [discoveryId], references: [id])
 
   @@index([tokenAddress])
   @@index([status])
