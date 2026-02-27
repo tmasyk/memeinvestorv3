@@ -42,9 +42,10 @@ export class TelegramProcessor {
           ? '🟢 Online (Frankfurt)' 
           : '⚠️ Disabled (Simulation)'
 
-        return `
+        return {
+          text: `
 🤖 *MemeInvestor V3 Dashboard*
----------------------------
+━━━━━━━━━━━━━━━━━━━━
 🚀 *Mode:* ${tradingMode}
 🧠 *Brain:* ${activePresetName}
 ⚡ *Jito:* ${jitoStatus}
@@ -54,10 +55,20 @@ export class TelegramProcessor {
 • Active Positions: ${openTradesCount}
 
 🔍 *Latest Scan*
- • Mint: \`${lastDiscovery?.tokenAddress || 'Waiting...'}\`
- • Time: ${lastDiscovery?.timestamp.toLocaleTimeString() || 'N/A'}
- • Last DB Write: ${lastDiscovery ? lastDiscovery.timestamp.toISOString() : 'Never'}
-         `
+• Mint: \`${lastDiscovery?.tokenAddress || 'Waiting...'}\`
+• Time: ${lastDiscovery?.timestamp.toLocaleTimeString() || 'N/A'}
+• Last DB Write: ${lastDiscovery ? lastDiscovery.timestamp.toISOString() : 'Never'}
+          `,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📊 Status', callback_data: 'status' }],
+              [{ text: '💼 Trades', callback_data: 'trades' }],
+              [{ text: '👛 Wallet', callback_data: 'wallet' }],
+              [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+              [{ text: '❓ Help', callback_data: 'help' }]
+            ]
+          }
+        }
       } catch (error: any) {
         console.error('[Telegram] Error handling /status:', error)
         return `❌ Error fetching status: ${error.message || 'Database connection failed'}`
@@ -111,14 +122,25 @@ export class TelegramProcessor {
         const balance = await connection.getBalance(keypair.publicKey)
         const solBalance = (balance / LAMPORTS_PER_SOL).toFixed(4)
 
-        return `
+        return {
+          text: `
 👛 *Trading Wallet*
----------------------------
+━━━━━━━━━━━━━━━━━━━━
 🔑 *Address:* \`${publicKey}\`
 💰 *Balance:* ${solBalance} SOL
 
 ⚠️ _Never share your private key._
-        `
+          `,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📊 Status', callback_data: 'status' }],
+              [{ text: '💼 Trades', callback_data: 'trades' }],
+              [{ text: '👛 Wallet', callback_data: 'wallet' }],
+              [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+              [{ text: '❓ Help', callback_data: 'help' }]
+            ]
+          }
+        }
       } catch (error: any) {
         console.error('[Telegram] Wallet command error:', error)
         return `❌ Error fetching wallet info: ${error.message}`
@@ -165,7 +187,18 @@ export class TelegramProcessor {
         })
 
         if (activeTrades.length === 0) {
-          return '📭 No active paper trades currently.'
+          return {
+            text: '📭 No active paper trades currently.',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📊 Status', callback_data: 'status' }],
+                [{ text: '💼 Trades', callback_data: 'trades' }],
+                [{ text: '👛 Wallet', callback_data: 'wallet' }],
+                [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+                [{ text: '❓ Help', callback_data: 'help' }]
+              ]
+            }
+          }
         }
 
         let message = '📊 *Active Paper Trades (Last 5)*\n\n'
@@ -182,7 +215,18 @@ export class TelegramProcessor {
           message += `   🕐 Opened: ${trade.createdAt.toLocaleString()}\n\n`
         })
 
-        return message
+        return {
+          text: message,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📊 Status', callback_data: 'status' }],
+              [{ text: '💼 Trades', callback_data: 'trades' }],
+              [{ text: '👛 Wallet', callback_data: 'wallet' }],
+              [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+              [{ text: '❓ Help', callback_data: 'help' }]
+            ]
+          }
+        }
       } catch (error: any) {
         console.error('[Telegram] Error handling /trades:', error)
         return `❌ Error fetching active trades: ${error.message || 'Database query failed'}`
@@ -191,14 +235,26 @@ export class TelegramProcessor {
 
     // Command: /help or Button: ❓ Help
     if (trimmedText === '/help' || trimmedText === '❓ Help') {
-      return `
+      return {
+        text: `
 📚 *Available Commands*
----------------------------
+━━━━━━━━━━━━━━━━━━━━
 /status - Check bot status and open trades
 /trades - List last 5 active paper trades and live ROI
+/wallet - Show wallet address and balance
 /preset <id> - Load a specific preset (e.g., degen_scalp, bluechip_safe)
 /help - Show this help message
-      `
+        `,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📊 Status', callback_data: 'status' }],
+            [{ text: '💼 Trades', callback_data: 'trades' }],
+            [{ text: '👛 Wallet', callback_data: 'wallet' }],
+            [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+            [{ text: '❓ Help', callback_data: 'help' }]
+          ]
+        }
+      }
     }
 
     return '❓ Unknown command. Type /help or use the menu below.'
@@ -207,6 +263,41 @@ export class TelegramProcessor {
   // Handle Callback Queries (Inline Buttons)
   async handleCallback(data: string): Promise<{ text: string, reply_markup?: any }> {
     try {
+      if (data === 'status') {
+        const statusResponse = await this.handleMessage('/status')
+        return typeof statusResponse === 'string' 
+          ? { text: statusResponse }
+          : statusResponse
+      }
+
+      if (data === 'trades') {
+        const tradesResponse = await this.handleMessage('/trades')
+        return typeof tradesResponse === 'string'
+          ? { text: tradesResponse }
+          : tradesResponse
+      }
+
+      if (data === 'wallet') {
+        const walletResponse = await this.handleMessage('/wallet')
+        return typeof walletResponse === 'string'
+          ? { text: walletResponse }
+          : walletResponse
+      }
+
+      if (data === 'help') {
+        const helpResponse = await this.handleMessage('/help')
+        return typeof helpResponse === 'string'
+          ? { text: helpResponse }
+          : helpResponse
+      }
+
+      if (data === 'switch_preset') {
+        const switchResponse = await this.handleMessage('🧠 Switch Preset')
+        return typeof switchResponse === 'string'
+          ? { text: switchResponse }
+          : switchResponse
+      }
+
       if (data.startsWith('preset_')) {
         const presetId = data.replace('preset_', '')
         
@@ -217,7 +308,6 @@ export class TelegramProcessor {
         const config = this.presetManager.getActivePresetConfig()
         const minLiquidity = config?.filters.find(f => f.name === 'MinLiquidity')?.params.minUsd
 
-        // Re-fetch list to show checkmark
         const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
         
         const keyboard = presets.map((p: { id: string, name: string }) => ([{
