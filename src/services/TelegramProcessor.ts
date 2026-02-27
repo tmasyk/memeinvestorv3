@@ -33,6 +33,10 @@ export class TelegramProcessor {
           orderBy: { timestamp: 'desc' }
         })
 
+        // Trading Mode Check
+        const { config } = await import('../core/config')
+        const tradingMode = config.liveTradingEnabled ? 'LIVE' : 'SIMULATION'
+
         // Jito Status Check
         const jitoStatus = process.env.JITO_BLOCK_ENGINE_URL && process.env.TRADING_PRIVATE_KEY 
           ? '🟢 Online (Frankfurt)' 
@@ -41,6 +45,7 @@ export class TelegramProcessor {
         return `
 🤖 *MemeInvestor V3 Dashboard*
 ---------------------------
+🚀 *Mode:* ${tradingMode}
 🧠 *Brain:* ${activePresetName}
 ⚡ *Jito:* ${jitoStatus}
 

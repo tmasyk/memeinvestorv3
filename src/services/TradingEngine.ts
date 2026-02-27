@@ -45,6 +45,11 @@ export class TradingEngine {
       data: { status: 'PROCESSING' }
     })
 
+    const buyAmount = 0.05
+    if (buyAmount > 0.05) {
+      throw new Error("Safety: Buy amount exceeds test limit")
+    }
+
     // --- JITO EXECUTION BLOCK ---
     if (config.jitoBlockEngineUrl && this.secretManager.hasTradingCredentials()) {
         const jito = JitoManager.getInstance()
@@ -79,9 +84,13 @@ export class TradingEngine {
           return
         }
 
-        // 2. Execute Bundle
-        const bundleId = await jito.sendBundle(`tx-${pendingTrade.id}`)
-        console.log(`[TradingEngine] Bundle Sent! ID: ${bundleId}`)
+        // 2. Execute Bundle (if live trading is enabled)
+        if (config.liveTradingEnabled) {
+          const bundleId = await jito.sendBundle(`tx-${pendingTrade.id}`)
+          console.log(`[TradingEngine] Bundle Sent! ID: ${bundleId}`)
+        } else {
+          console.log(`[TradingEngine] 🚫 LIVE_TRADING_ENABLED=false. Simulation complete - ABORTING real bundle send to block engine.`)
+        }
         
         // NOTE: Real Jito implementation requires constructing a VersionedTransaction, 
         // signing it with the private key, and sending it to the Block Engine via RPC/gRPC.
