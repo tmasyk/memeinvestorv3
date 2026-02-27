@@ -31,3 +31,4 @@ export const config = {
   jitoBlockEngineUrl: parsedEnv.data.JITO_BLOCK_ENGINE_URL,
   telegramBotToken: parsedEnv.data.TELEGRAM_BOT_TOKEN
 }
+// Force rebuild
