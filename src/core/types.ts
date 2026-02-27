@@ -12,7 +12,7 @@ export interface IRiskPlugin extends IPlugin {
 }
 
 export interface IStrategyPlugin extends IPlugin {
-  shouldExit(trade: any, currentPrice: number): { exit: boolean, reason?: string }
+  shouldExit(trade: any, currentPrice: number): { exit: boolean, reason?: string, amountPercent?: number }
 }
 
 export interface IPresetConfig {

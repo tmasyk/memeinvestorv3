@@ -2,22 +2,26 @@ import { PrismaClient } from '@prisma/client'
 import { PositionManager } from './PositionManager'
 import { IStrategyPlugin } from '../core/types'
 import { EventBus, EventName } from '../core/EventBus'
+import { TelegramService } from './TelegramService'
 
 export class PositionMonitor {
   private prisma: PrismaClient
   private positionManager: PositionManager
   private strategy: IStrategyPlugin
   private eventBus: EventBus
+  private telegramService?: TelegramService
 
   constructor(
     prisma: PrismaClient,
     positionManager: PositionManager,
-    strategy: IStrategyPlugin
+    strategy: IStrategyPlugin,
+    telegramService?: TelegramService
   ) {
     this.prisma = prisma
     this.positionManager = positionManager
     this.strategy = strategy
     this.eventBus = EventBus.getInstance()
+    this.telegramService = telegramService
 
     this.setupListeners()
   }
@@ -50,20 +54,47 @@ export class PositionMonitor {
       const decision = this.strategy.shouldExit(trade, currentPrice)
 
       if (decision.exit) {
-        // Close the trade
-        await this.prisma.paperTrade.update({
-          where: { id: trade.id },
-          data: {
-            status: 'CLOSED',
-            exitPrice: currentPrice,
-            exitReason: decision.reason
-          }
-        })
+        if (decision.amountPercent && decision.amountPercent < 100) {
+          // Partial Exit (Moonbag)
+          const remainingPercent = 100 - decision.amountPercent
+          const initialAmount = trade.amount
+          const newAmount = initialAmount * (remainingPercent / 100)
 
-        // Release the position slot
-        this.positionManager.untrackPosition(trade.tokenAddress)
+          await this.prisma.paperTrade.update({
+            where: { id: trade.id },
+            data: {
+              didTakeInitialProfit: true,
+              remainingAmount: newAmount,
+              // Do NOT set status to CLOSED
+            }
+          })
 
-        console.log(`[PositionMonitor] Exiting ${trade.tokenAddress} at $${currentPrice} due to ${decision.reason}`)
+          console.log(`[PositionMonitor] Partial Exit (${decision.amountPercent}%) for ${trade.tokenAddress} at $${currentPrice}. Remaining: ${newAmount}`)
+          
+          // Send Alert
+          const pnl = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100
+          await this.telegramService?.sendTradeAlert(trade, 'PARTIAL', pnl)
+        } else {
+          // Full Exit
+          await this.prisma.paperTrade.update({
+            where: { id: trade.id },
+            data: {
+              status: 'CLOSED',
+              exitPrice: currentPrice,
+              exitReason: decision.reason,
+              remainingAmount: 0
+            }
+          })
+
+          // Release the position slot
+          this.positionManager.untrackPosition(trade.tokenAddress)
+
+          console.log(`[PositionMonitor] Full Exit ${trade.tokenAddress} at $${currentPrice} due to ${decision.reason}`)
+          
+          // Send Alert
+          const pnl = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100
+          await this.telegramService?.sendTradeAlert({ ...trade, exitReason: decision.reason }, 'FULL', pnl)
+        }
       }
     }
   }

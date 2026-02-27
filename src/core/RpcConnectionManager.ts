@@ -7,7 +7,7 @@ interface RpcConnectionManagerOptions {
   reconnectDelayMs?: number
 }
 
-class RpcConnectionManager extends EventEmitter {
+export class RpcConnectionManager extends EventEmitter {
   private static instance: RpcConnectionManager
   private ws: WebSocket | null = null
   private heartbeatTimer: NodeJS.Timeout | null = null
@@ -33,6 +33,10 @@ class RpcConnectionManager extends EventEmitter {
   }
 
   connect(): void {
+    if (!config.rpcUrl) {
+      throw new Error('FATAL: No RPC_URL found in .env. Cannot connect to Solana Mainnet.')
+    }
+
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       this.emit('error', new Error('Connection already exists'))
       return
@@ -44,6 +48,21 @@ class RpcConnectionManager extends EventEmitter {
 
     this.isConnecting = true
 
+    // Use WebSocket URL from env if available, otherwise derive from RPC URL or config default
+    // Note: config.wsUrl is already parsed/validated in config.ts, but let's be explicit about the fallback
+    // logic if we were using raw env vars. Since we use config.ts, we rely on it.
+    // However, the prompt asks to update the Connection object (which is usually web3.js Connection)
+    // BUT this class uses raw WebSocket.
+    
+    // Wait, the prompt says "Update the Connection object to explicitly use the WebSocket endpoint if provided".
+    // This usually refers to @solana/web3.js Connection class.
+    // But RpcConnectionManager is using 'ws' library directly.
+    
+    // Let's check RaydiumScanner.ts which uses @solana/web3.js Connection.
+    // AND let's update RpcConnectionManager to ensure it uses the correct WS URL.
+    
+    console.log(`[System] Attempting connection to RPC: ${config.rpcUrl}`)
+    console.log(`[RpcConnectionManager] Connecting to ${config.wsUrl}...`)
     this.ws = new WebSocket(config.wsUrl)
 
     this.ws.on('open', () => {
@@ -167,5 +186,3 @@ class RpcConnectionManager extends EventEmitter {
     return this.isConnected() && this.subscriptionCount > 0
   }
 }
-
-export default RpcConnectionManager

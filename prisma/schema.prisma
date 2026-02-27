@@ -60,6 +60,8 @@ model PaperTrade {
   entryPrice   Float
   exitPrice    Float?
   exitReason   String?
+  didTakeInitialProfit Boolean @default(false)
+  remainingAmount Float?
   status       PaperTradeStatus @default(OPEN)
   createdAt    DateTime         @default(now())
 
