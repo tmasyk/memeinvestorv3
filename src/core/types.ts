@@ -22,4 +22,5 @@ export interface IPresetConfig {
   risks: Array<{ name: string; params: any; weight: number }>
   strategies: Array<{ name: string; params: any }>
   jitoTip?: number
+  minMomentumRatio?: number
 }

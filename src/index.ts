@@ -67,11 +67,12 @@ async function main() {
   ]
 
   // 3. Initialize Core Services
-  const scannerService = new ScannerService(filters, riskPlugins, prisma)
   const positionManager = new PositionManager()
   
   const presetManager = new PresetManager(prisma)
   await presetManager.loadPreset('bluechip_safe')
+
+  const scannerService = new ScannerService(filters, riskPlugins, prisma, presetManager)
 
   const secretManager = SecretManager.getInstance()
   JitoManager.getInstance(secretManager, presetManager, prisma)

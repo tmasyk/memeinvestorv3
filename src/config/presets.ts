@@ -14,7 +14,8 @@ export const PRESETS: Record<string, IPresetConfig> = {
       { name: 'VelocityPumpStrategy', params: { targetMultiplier: 2, maxMinutes: 5 } },
       { name: 'FixedRiskStrategy', params: { takeProfit: 300, stopLoss: 20 } }
     ],
-    jitoTip: 0.003
+    jitoTip: 0.003,
+    minMomentumRatio: 3.0
   },
   'bluechip_safe': {
     id: 'bluechip_safe',

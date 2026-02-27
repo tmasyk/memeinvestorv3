@@ -3,10 +3,15 @@ import { IFilterPlugin } from '../../core/types'
 export class MomentumFilter implements IFilterPlugin {
   name = 'MomentumFilter'
   version = '1.0.0'
-  private readonly volumeLiquidityRatio: number
+  private volumeLiquidityRatio: number
 
   constructor(volumeLiquidityRatio: number = 2.0) {
     this.volumeLiquidityRatio = volumeLiquidityRatio
+  }
+
+  setThreshold(ratio: number): void {
+    this.volumeLiquidityRatio = ratio
+    console.log(`[MomentumFilter] Threshold updated to ${ratio}x`)
   }
 
   execute(tokenData: any): { passed: boolean, metadata?: any } {

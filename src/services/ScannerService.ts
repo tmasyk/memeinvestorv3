@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
-import { IFilterPlugin, IRiskPlugin } from '../core/types'
+import { IFilterPlugin, IRiskPlugin, IPresetConfig } from '../core/types'
 import { EventBus, EventName } from '../core/EventBus'
+import { PresetManager } from '../core/PresetManager'
 
 export class ScannerService {
   private filters: IFilterPlugin[]
@@ -8,12 +9,14 @@ export class ScannerService {
   private prisma: PrismaClient
   private eventBus: EventBus
   private isTradingEnabled: boolean = true
+  private presetManager: PresetManager
 
-  constructor(filters: IFilterPlugin[], riskPlugins: IRiskPlugin[], prisma: PrismaClient) {
+  constructor(filters: IFilterPlugin[], riskPlugins: IRiskPlugin[], prisma: PrismaClient, presetManager?: PresetManager) {
     this.filters = filters
     this.riskPlugins = riskPlugins
     this.prisma = prisma
     this.eventBus = EventBus.getInstance()
+    this.presetManager = presetManager || new PresetManager(prisma)
   }
 
   setTradingEnabled(enabled: boolean): void {
@@ -25,6 +28,21 @@ export class ScannerService {
     return this.isTradingEnabled
   }
 
+  private applyMomentumThresholdFromPreset(source: string): void {
+    const momentumFilter = this.filters.find(f => f.name === 'MomentumFilter') as any
+    if (!momentumFilter) return
+
+    if (source === 'SCOUT') {
+      momentumFilter.setThreshold(2.0)
+      console.log('[ScannerService] SCOUT source: Applying standard 2.0x momentum threshold')
+    } else {
+      const activePreset = this.presetManager.getActivePresetConfig()
+      const threshold = activePreset?.minMomentumRatio || 2.0
+      momentumFilter.setThreshold(threshold)
+      console.log(`[ScannerService] SNIPER source: Applying preset threshold of ${threshold}x`)
+    }
+  }
+
   async processNewToken(rawToken: any, source: string = 'SNIPER'): Promise<void> {
     if (!this.isTradingEnabled) {
       console.log(`[Scanner] Trading is DISABLED. Skipping token: ${rawToken.address}`)
@@ -34,6 +52,8 @@ export class ScannerService {
     console.log(`[Scanner] Processing new token: ${rawToken.address} (Source: ${source})`)
     const poolDetectedTime = Date.now()
     this.eventBus.emit(EventName.POOL_DETECTED, { tokenAddress: rawToken.address, poolDetectedTime })
+
+    this.applyMomentumThresholdFromPreset(source)
 
     let passedFilters = false
     let failedFilterName: string | null = null
