@@ -15,6 +15,18 @@ export class TelegramProcessor {
     this.setupEventListeners()
   }
 
+  private getMainMenuKeyboard(): any {
+    return {
+      inline_keyboard: [
+        [{ text: '📊 Status', callback_data: 'status' }],
+        [{ text: '💼 Trades', callback_data: 'trades' }],
+        [{ text: '👛 Wallet', callback_data: 'wallet' }],
+        [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+        [{ text: '❓ Help', callback_data: 'help' }]
+      ]
+    }
+  }
+
   private setupEventListeners() {
     this.eventBus.on(EventName.POOL_SCANNED, () => {
       this.scannedPoolsCount++
@@ -23,6 +35,11 @@ export class TelegramProcessor {
 
   async handleMessage(text: string): Promise<string | any> {
     const trimmedText = text.trim()
+
+    // Command: /start - Always show main menu
+    if (trimmedText === '/start') {
+      return this.handleMessage('/help')
+    }
 
     // Command: /status or Button: 📊 Status
     if (trimmedText === '/status' || trimmedText === '📊 Status') {
@@ -71,15 +88,7 @@ export class TelegramProcessor {
 • Time: ${lastDiscovery?.timestamp.toLocaleTimeString() || 'N/A'}
 • Last DB Write: ${lastDiscovery ? lastDiscovery.timestamp.toISOString() : 'Never'}
           `,
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📊 Status', callback_data: 'status' }],
-              [{ text: '💼 Trades', callback_data: 'trades' }],
-              [{ text: '👛 Wallet', callback_data: 'wallet' }],
-              [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
-              [{ text: '❓ Help', callback_data: 'help' }]
-            ]
-          }
+          reply_markup: this.getMainMenuKeyboard()
         }
       } catch (error: any) {
         console.error('[Telegram] Error handling /status:', error)
@@ -100,6 +109,8 @@ export class TelegramProcessor {
           text: p.name,
           callback_data: `preset_${p.id}`
         }]))
+
+        keyboard.push([{ text: '🔙 Back to Menu', callback_data: 'help' }])
 
         return {
           text: '🧠 *Select a Strategy Brain:*',
@@ -143,15 +154,7 @@ export class TelegramProcessor {
 
 ⚠️ _Never share your private key._
           `,
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📊 Status', callback_data: 'status' }],
-              [{ text: '💼 Trades', callback_data: 'trades' }],
-              [{ text: '👛 Wallet', callback_data: 'wallet' }],
-              [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
-              [{ text: '❓ Help', callback_data: 'help' }]
-            ]
-          }
+          reply_markup: this.getMainMenuKeyboard()
         }
       } catch (error: any) {
         console.error('[Telegram] Wallet command error:', error)
@@ -201,15 +204,7 @@ export class TelegramProcessor {
         if (activeTrades.length === 0) {
           return {
             text: '📭 No active paper trades currently.',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '📊 Status', callback_data: 'status' }],
-                [{ text: '💼 Trades', callback_data: 'trades' }],
-                [{ text: '👛 Wallet', callback_data: 'wallet' }],
-                [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
-                [{ text: '❓ Help', callback_data: 'help' }]
-              ]
-            }
+            reply_markup: this.getMainMenuKeyboard()
           }
         }
 
@@ -229,15 +224,7 @@ export class TelegramProcessor {
 
         return {
           text: message,
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📊 Status', callback_data: 'status' }],
-              [{ text: '💼 Trades', callback_data: 'trades' }],
-              [{ text: '👛 Wallet', callback_data: 'wallet' }],
-              [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
-              [{ text: '❓ Help', callback_data: 'help' }]
-            ]
-          }
+          reply_markup: this.getMainMenuKeyboard()
         }
       } catch (error: any) {
         console.error('[Telegram] Error handling /trades:', error)
@@ -251,21 +238,14 @@ export class TelegramProcessor {
         text: `
 📚 *Available Commands*
 ━━━━━━━━━━━━━━━━━━━━
+/start - Show main menu
 /status - Check bot status and open trades
 /trades - List last 5 active paper trades and live ROI
 /wallet - Show wallet address and balance
 /preset <id> - Load a specific preset (e.g., degen_scalp, bluechip_safe)
 /help - Show this help message
         `,
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📊 Status', callback_data: 'status' }],
-            [{ text: '💼 Trades', callback_data: 'trades' }],
-            [{ text: '👛 Wallet', callback_data: 'wallet' }],
-            [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
-            [{ text: '❓ Help', callback_data: 'help' }]
-          ]
-        }
+        reply_markup: this.getMainMenuKeyboard()
       }
     }
 
@@ -320,18 +300,9 @@ export class TelegramProcessor {
         const config = this.presetManager.getActivePresetConfig()
         const minLiquidity = config?.filters.find(f => f.name === 'MinLiquidity')?.params.minUsd
 
-        const presets = await this.prisma.preset.findMany({ select: { id: true, name: true } })
-        
-        const keyboard = presets.map((p: { id: string, name: string }) => ([{
-          text: p.id === presetId ? `✅ ${p.name}` : p.name,
-          callback_data: `preset_${p.id}`
-        }]))
-
         return {
           text: `✅ *Brain Swapped!*\n\n🧠 *Active:* ${config?.name}\n💧 *Min Liq:* $${minLiquidity}`,
-          reply_markup: {
-            inline_keyboard: keyboard
-          }
+          reply_markup: this.getMainMenuKeyboard()
         }
       }
 
