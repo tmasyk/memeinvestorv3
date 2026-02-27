@@ -27,12 +27,17 @@ export class TelegramProcessor {
   }
 
   private getMainMenuKeyboard(): any {
+    const scoutEnabled = this.trendingScoutService ? this.trendingScoutService.isEnabledState() : false
+    const scoutButtonText = scoutEnabled ? '🚫 Stop Scout' : '🔭 Start Scout'
+    const scoutButtonCallback = scoutEnabled ? 'scout_off' : 'scout_on'
+
     return {
       inline_keyboard: [
         [{ text: '📊 Status', callback_data: 'status' }],
         [{ text: '💼 Trades', callback_data: 'trades' }],
         [{ text: '👛 Wallet', callback_data: 'wallet' }],
         [{ text: '🧠 Switch Preset', callback_data: 'switch_preset' }],
+        [{ text: scoutButtonText, callback_data: scoutButtonCallback }],
         [{ text: '▶️ Start Trading', callback_data: 'start_trading' }],
         [{ text: '⏸️ Stop Trading', callback_data: 'stop_trading' }],
         [{ text: '❓ Help', callback_data: 'help' }]
@@ -373,6 +378,20 @@ export class TelegramProcessor {
 
       if (data === 'stop_trading') {
         const stopResponse = await this.handleMessage('/stop')
+        return typeof stopResponse === 'string'
+          ? { text: stopResponse }
+          : stopResponse
+      }
+
+      if (data === 'scout_on') {
+        const startResponse = await this.handleMessage('/scout_on')
+        return typeof startResponse === 'string'
+          ? { text: startResponse }
+          : startResponse
+      }
+
+      if (data === 'scout_off') {
+        const stopResponse = await this.handleMessage('/scout_off')
         return typeof stopResponse === 'string'
           ? { text: stopResponse }
           : stopResponse
