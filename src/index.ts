@@ -18,6 +18,7 @@ import { TrendingScoutService } from './services/TrendingScoutService'
 
 // Plugins
 import { MinLiquidityFilter } from './plugins/filters/MinLiquidityFilter'
+import { MomentumFilter } from './plugins/filters/MomentumFilter'
 import { MintRevokedCheck } from './plugins/risk/MintRevokedCheck'
 import { GiniConcentrationRisk } from './plugins/risk/GiniConcentrationRisk'
 import { FixedRiskStrategy } from './plugins/strategies/FixedRiskStrategy'
@@ -56,7 +57,8 @@ async function main() {
 
   // 2. Initialize Plugins
   const filters = [
-    new MinLiquidityFilter(1000)
+    new MinLiquidityFilter(1000),
+    new MomentumFilter(2.0)
   ]
   
   const riskPlugins = [
